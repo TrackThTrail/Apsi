@@ -1,0 +1,116 @@
+.app-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center; /* centers inner container */
+  background: linear-gradient(90deg, #0f172a, #1e293b);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(2,6,23,0.6);
+  z-index: 1000;
+}
+
+.header-inner {
+  width: 100%;
+  max-width: 1200px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1rem;
+}
+
+.brand {
+  font-weight: 700;
+  font-size: 1.2rem;
+  letter-spacing: 0.4px;
+}
+
+.header-right .btn {
+  margin-left: 0.5rem;
+  padding: 0.45rem 0.85rem;
+  background: rgba(255,255,255,0.06);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.08s;
+}
+
+.header-right .btn:hover {
+  background: rgba(255,255,255,0.08);
+  transform: translateY(-1px);
+}
+
+.header-right .btn-logout {
+  background: rgba(229,57,53,0.15);
+  border-color: rgba(229,57,53,0.25);
+}
+
+/* legacy .team-dropdown removed - modal is used instead */
+
+/* Modal overlay for team list */
+.team-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(2,6,23,0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+}
+
+.team-modal-content {
+  width: min(720px, 92%);
+  max-height: 80vh;
+  background: linear-gradient(180deg, #ffffff, #fbfbfd);
+  border-radius: 12px;
+  box-shadow: 0 12px 40px rgba(2,6,23,0.18);
+  overflow: auto;
+}
+
+.team-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid #eef2f7;
+}
+
+.team-modal-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #0f172a;
+}
+
+.close-btn {
+  background: transparent;
+  border: none;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  color: #374151;
+}
+
+.team-modal-body {
+  padding: 0.75rem 1.25rem 1.25rem 1.25rem;
+}
+
+.team-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+
+.team-item { background: #ffffff; padding: 0.85rem; border-radius: 8px; border: 1px solid #f3f4f6; }
+
+.team-name { font-weight: 600; color: #0f172a; }
+.team-email { color: #6b7280; font-size: 0.85rem; margin-top: 4px; }
+
+.loading, .empty {
+  padding: 0.5rem;
+  color: #666;
+}
+
+/* spacing for page content to avoid being overlapped by fixed header */
+.app-content {
+  padding-top: 80px; /* slightly larger than header height */
+}
