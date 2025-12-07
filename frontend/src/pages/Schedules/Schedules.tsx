@@ -162,6 +162,23 @@ export default function Schedules() {
         // fallback to string
         return String(value);
     };
+    const findPersonShortName = (list: any[], value: any) => {
+        // prefer resolving from list
+        if (value == null) return '';
+        const id = (typeof value === 'object' && value !== null) ? (value.id ?? value.patient_id ?? value.intern_id ?? null) : value;
+        let found = null;
+        if (id != null) found = list.find(u => String(u.id) === String(id));
+        if (!found && typeof value === 'object' && value !== null) found = value;
+        const name = found ? (`${found.first_name || ''}`.trim() + (found.last_name ? ` ${String(found.last_name).split(' ')[0].slice(0,1)}.` : '')) : null;
+        if (name) return name;
+        // fallback: if value is a string full name, abbreviate last name
+        if (typeof value === 'string') {
+            const parts = value.split(' ');
+            if (parts.length === 1) return parts[0];
+            return `${parts[0]} ${parts[1].slice(0,1)}.`;
+        }
+        return String(value);
+    };
     const slotIsOccupied = (internId: any, start: Date, end: Date) => {
         return schedules.some(s => {
             try{
@@ -279,60 +296,76 @@ export default function Schedules() {
                         {viewMode === 'day' ? (
                             <>
                             <div className="day-view">
-                                {( (()=>{
-                                    const slots = buildHourlySlotsForDate(selectedDate);
-                                    if(slots.length === 0) return <div className="empty">Nenhum horário disponível neste dia.</div>;
+                                {(() => {
+                                    const internSlots = buildHourlySlotsForDate(selectedDate);
+                                    const patientSlots = buildHourlyPatientSlotsForDate(selectedDate);
+                                    // group by local hour:minute key to avoid timezone/ms mismatch
+                                    const timeMap = new Map<string, { time: Date, intern: any[], patients: any[] }>();
+                                    const keyFor = (dt: Date) => {
+                                        const y = dt.getFullYear();
+                                        const m = String(dt.getMonth()+1).padStart(2,'0');
+                                        const day = String(dt.getDate()).padStart(2,'0');
+                                        const hh = String(dt.getHours()).padStart(2,'0');
+                                        const mm = String(dt.getMinutes()).padStart(2,'0');
+                                        return `${y}-${m}-${day}T${hh}:${mm}`;
+                                    };
+                                    internSlots.forEach(s => {
+                                        const k = keyFor(s.start);
+                                        if (!timeMap.has(k)) timeMap.set(k, { time: s.start, intern: [], patients: [] });
+                                        timeMap.get(k)!.intern.push(s);
+                                    });
+                                    patientSlots.forEach(s => {
+                                        const k = keyFor(s.start);
+                                        if (!timeMap.has(k)) timeMap.set(k, { time: s.start, intern: [], patients: [] });
+                                        timeMap.get(k)!.patients.push(s);
+                                    });
+                                    const entries = Array.from(timeMap.entries()).sort((a,b)=> new Date(a[0]).getTime() - new Date(b[0]).getTime());
+                                    if (entries.length === 0) return <div className="empty">Nenhum horário disponível neste dia.</div>;
+                                    // Only render time-rows for intern slots (and potential matches). Patient-only times are shown below in the patient-only list to avoid duplicated time labels.
+                                    const internEntries = entries.filter(([_k, group]) => group.intern.length > 0);
                                     return (
                                         <div className="day-schedule-list">
-                                            {slots.map(slot => {
-                                            const occupied = slotIsOccupied(slot.internId, slot.start, slot.end);
-                                            // determine if slot matches selected patient's availability
-                                            const patientId = form.patient;
-                                            let isMatch = false;
-                                            if (patientId) {
-                                                const pats = getPatientAvailabilitiesForPatientAndDate(patientId, selectedDate);
-                                                isMatch = pats.some(pa => { const ps = new Date(pa.start_date); const pe = new Date(pa.end_date); return ps.getTime() < slot.end.getTime() && pe.getTime() > slot.start.getTime(); });
-                                            }
-
-                                            // show intern name always now
-                                            const showInternName = true;
-
-                                            if (occupied) {
-                                                const sched = getScheduleForSlot(slot.internId, slot.start, slot.end);
-                                                // prefer serializer-provided name fields, otherwise resolve via patients list
-                                                const patientName = sched ? (sched.patient_name || sched.patient_name || findPersonName(patients, sched.patient ?? sched.patient_id ?? sched.patientId ?? sched.patient)) : '';
-                                                return (
-                                                    <div key={`occ-${slot.internId}-${slot.start.toISOString()}`} className={"day-schedule-item calendar-schedule" + (isMatch ? ' slot-match' : '')}>
-                                                        <div className="event-time">{slot.start.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} - {slot.end.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
-                                                        <div className="event-main">{showInternName ? `${slot.internName}${patientName ? ' / ' + patientName : ' — Ocupado'}` : 'Ocupado'}</div>
+                                            {internEntries.map(([k, group]) => {
+                                                const t = group.time;
+                                                const isPotentialMatch = group.intern.length > 0 && group.patients.length > 0;
+                                                    return (
+                                                    <div key={`row-${k}`} className={`time-row${isPotentialMatch ? ' time-row-match' : ''}`}>
+                                                        <div style={{display:'flex', gap:8, flexWrap:'wrap'}}>
+                                                            {group.intern.map(slot => (
+                                                                        <div key={`i-${slot.internId}-${slot.start.toISOString()}`} title={slot.internName} className={`day-availability-item availability-intern${isPotentialMatch ? ' slot-potential-match' : ''}`} style={{cursor: bookingMode ? (form.patient ? 'pointer' : 'default') : 'default'}} onClick={()=> (bookingMode && form.patient) ? handleSlotClick(slot as any) : undefined}>
+                                                                            <div className="event-time">{t.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} - {new Date(t.getTime()+3600*1000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
+                                                                            <div className="event-main">{findPersonShortName(interns, slot.internId)}</div>
+                                                                        </div>
+                                                                    ))}
+                                                            {isPotentialMatch ? group.patients.map(ps => (
+                                                                <div key={`p-${ps.parentId}-${ps.start.toISOString()}`} className={`day-availability-item availability-patient${bookingMode && form.patient && String(ps.patientId) === String(form.patient) ? ' slot-match' : ''}${isPotentialMatch ? ' slot-potential-match' : ''}`} title={ps.patientName}>
+                                                                    <div className="event-time">{t.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} - {new Date(t.getTime()+3600*1000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
+                                                                    <div className="event-main">{findPersonShortName(patients, ps.patientId)}</div>
+                                                                </div>
+                                                            )) : null}
+                                                        </div>
                                                     </div>
                                                 );
-                                            }
-
-                                            // free slot — show intern name always; if it matches selected patient's availability, show patient too
-                                            return (
-                                                <div key={`slot-${slot.internId}-${slot.start.toISOString()}`} className={"day-availability-item availability-intern" + (isMatch ? ' slot-match' : '')} style={{cursor: bookingMode ? (form.patient ? 'pointer' : 'default') : 'default'}} onClick={()=> (bookingMode && form.patient) ? handleSlotClick(slot as any) : undefined}>
-                                                    <div className="event-time">{slot.start.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} - {slot.end.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
-                                                    <div className="event-main">{slot.internName}{isMatch ? ' / ' + findPersonName(patients, form.patient) : ''}</div>
-                                                </div>
-                                            );
-                                        })}
+                                            })}
                                         </div>
                                     );
-                                })() )}
+                                })()}
                             </div>
                             {/* show patient availabilities for the day */}
                             {(() => {
-                                const pSlots = buildHourlyPatientSlotsForDate(selectedDate);
+                                // only show patient-only slots here (exclude those times where an intern is present to avoid duplicates)
+                                const internSlotsForDay = buildHourlySlotsForDate(selectedDate).map(s => s.start.getTime());
+                                let pSlots = buildHourlyPatientSlotsForDate(selectedDate) || [];
+                                pSlots = pSlots.filter(ps => !internSlotsForDay.includes(ps.start.getTime()));
                                 if (!pSlots || pSlots.length === 0) return null;
                                 return (
                                     <div style={{marginTop:12}}>
                                         <h4 style={{margin:0, marginBottom:6}}>Disponibilidades dos pacientes (1h)</h4>
                                         <div className="day-schedule-list">
                                             {pSlots.map(ps => (
-                                                <div key={`pav-${ps.parentId}-${ps.start.toISOString()}`} className={`day-availability-item availability-patient${bookingMode && form.patient && String(ps.patientId) === String(form.patient) ? ' slot-match' : ''}`}>
+                                                <div key={`pav-${ps.parentId}-${ps.start.toISOString()}`} className={`day-availability-item availability-patient compact${bookingMode && form.patient && String(ps.patientId) === String(form.patient) ? ' slot-match' : ''}`} title={ps.patientName}>
                                                     <div className="event-time">{ps.start.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} - {ps.end.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
-                                                    <div className="event-main">{ps.patientName}</div>
+                                                    <div className="event-main">{findPersonShortName(patients, ps.patientId)}</div>
                                                 </div>
                                             ))}
                                         </div>
@@ -351,47 +384,66 @@ export default function Schedules() {
                                             <div className="week-day-header">{d.toLocaleDateString(undefined,{ weekday: 'short', day:'numeric' })}</div>
                                             <div className="week-day-body">
                                                 {(() => {
-                                                    const slots = buildHourlySlotsForDate(d);
-                                                    if (slots.length === 0) return <div className="empty">Nenhum horário disponível neste dia.</div>;
-                                                    return slots.map(slot => {
-                                                        const occupied = slotIsOccupied(slot.internId, slot.start, slot.end);
-                                                        // determine if slot matches selected patient's availability
-                                                        const patientId = form.patient;
-                                                        let isMatch = false;
-                                                        if (patientId) {
-                                                            const pats = getPatientAvailabilitiesForPatientAndDate(patientId, d);
-                                                            isMatch = pats.some(pa => { const ps = new Date(pa.start_date); const pe = new Date(pa.end_date); return ps.getTime() < slot.end.getTime() && pe.getTime() > slot.start.getTime(); });
-                                                        }
-                                                        const showInternName = true; // always reveal intern names
-
-                                                        if (occupied) {
-                                                            const sched = getScheduleForSlot(slot.internId, slot.start, slot.end);
-                                                            const patientName = sched ? (sched.patient_name || findPersonName(patients, sched.patient ?? sched.patient_id ?? sched.patientId ?? sched.patient)) : '';
-                                                            return (
-                                                                <div key={`occ-${slot.internId}-${slot.start.toISOString()}`} className={"calendar-schedule" + (isMatch ? ' slot-match' : '')} style={{padding:6, borderRadius:6, marginBottom:6}}>
-                                                                    <div className="event-time">{slot.start.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} - {slot.end.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
-                                                                    <div className="event-main">{showInternName ? `${slot.internName}${patientName ? ' / ' + patientName : ' — Ocupado'}` : 'Ocupado'}</div>
-                                                                </div>
-                                                            );
-                                                        }
-
-                                                        // free slot — if matches selected patient's availability, show patient name
+                                                    const internSlots = buildHourlySlotsForDate(d);
+                                                    const patientSlots = buildHourlyPatientSlotsForDate(d);
+                                                    // group by local hour:minute key to avoid timezone/ms mismatch
+                                                    const timeMap = new Map<string, { time: Date, intern: any[], patients: any[] }>();
+                                                    const keyFor = (dt: Date) => {
+                                                        const y = dt.getFullYear();
+                                                        const m = String(dt.getMonth()+1).padStart(2,'0');
+                                                        const day = String(dt.getDate()).padStart(2,'0');
+                                                        const hh = String(dt.getHours()).padStart(2,'0');
+                                                        const mm = String(dt.getMinutes()).padStart(2,'0');
+                                                        return `${y}-${m}-${day}T${hh}:${mm}`;
+                                                    };
+                                                    internSlots.forEach(s => {
+                                                        const k = keyFor(s.start);
+                                                        if (!timeMap.has(k)) timeMap.set(k, { time: s.start, intern: [], patients: [] });
+                                                        timeMap.get(k)!.intern.push(s);
+                                                    });
+                                                    patientSlots.forEach(s => {
+                                                        const k = keyFor(s.start);
+                                                        if (!timeMap.has(k)) timeMap.set(k, { time: s.start, intern: [], patients: [] });
+                                                        timeMap.get(k)!.patients.push(s);
+                                                    });
+                                                    const entries = Array.from(timeMap.entries()).sort((a,b)=> new Date(a[0]).getTime() - new Date(b[0]).getTime());
+                                                    if (entries.length === 0) return <div className="empty">Nenhum horário disponível neste dia.</div>;
+                                                    // Only render time-rows for intern slots (and potential matches). Patient-only times are shown below to avoid duplicated time labels.
+                                                    const internEntries = entries.filter(([_k, group]) => group.intern.length > 0);
+                                                    return internEntries.map(([k, group]) => {
+                                                        const t = group.time;
+                                                        const isPotentialMatch = group.intern.length > 0 && group.patients.length > 0;
                                                         return (
-                                                            <div key={`slot-${slot.internId}-${slot.start.toISOString()}`} className={("calendar-availability availability-intern") + (isMatch ? ' slot-match' : '')} style={{padding:6, borderRadius:6, marginBottom:6, cursor: (bookingMode && form.patient) ? 'pointer' : 'default'}} onClick={()=> (bookingMode && form.patient) ? handleSlotClick(slot as any) : undefined}>
-                                                                <div className="event-time">{slot.start.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} - {slot.end.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
-                                                                <div className="event-main">{slot.internName}{isMatch ? ' / ' + findPersonName(patients, form.patient) : ''}</div>
+                                                            <div key={`row-${k}`} className={`time-row${isPotentialMatch ? ' time-row-match' : ''}`}>
+                                                                <div style={{display:'flex', gap:8, flexWrap:'wrap'}}>
+                                                                    {group.intern.map(slot => (
+                                                                                <div key={`i-${slot.internId}-${slot.start.toISOString()}`} title={slot.internName} className={`day-availability-item availability-intern${isPotentialMatch ? ' slot-potential-match' : ''}`} style={{cursor: bookingMode ? (form.patient ? 'pointer' : 'default') : 'default'}} onClick={()=> (bookingMode && form.patient) ? handleSlotClick(slot as any) : undefined}>
+                                                                                    <div className="event-time">{t.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} - {new Date(t.getTime()+3600*1000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
+                                                                                    <div className="event-main">{findPersonShortName(interns, slot.internId)}</div>
+                                                                                </div>
+                                                                    ))}
+                                                                            {isPotentialMatch ? group.patients.map(ps => (
+                                                                                <div key={`p-${ps.parentId}-${ps.start.toISOString()}`} className={`day-availability-item availability-patient${bookingMode && form.patient && String(ps.patientId) === String(form.patient) ? ' slot-match' : ''}${isPotentialMatch ? ' slot-potential-match' : ''}`} title={ps.patientName}>
+                                                                                    <div className="event-time">{t.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} - {new Date(t.getTime()+3600*1000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
+                                                                                    <div className="event-main">{findPersonShortName(patients, ps.patientId)}</div>
+                                                                                </div>
+                                                                            )) : null}
+                                                                </div>
                                                             </div>
                                                         );
                                                     });
                                                 })()}
                                                 {/* show patient availabilities for this week-day (hourly) */}
                                                 {(() => {
-                                                    const pSlots = buildHourlyPatientSlotsForDate(d);
+                                                    // only render patient-only slots (exclude times already shown with interns in this day column)
+                                                    const internSlotsForDay = buildHourlySlotsForDate(d).map(s => s.start.getTime());
+                                                    let pSlots = buildHourlyPatientSlotsForDate(d) || [];
+                                                    pSlots = pSlots.filter(ps => !internSlotsForDay.includes(ps.start.getTime()));
                                                     if (!pSlots || pSlots.length === 0) return null;
                                                     return pSlots.map(ps => (
-                                                        <div key={`pavw-${ps.parentId}-${ps.start.toISOString()}`} className={`day-availability-item availability-patient${bookingMode && form.patient && String(ps.patientId) === String(form.patient) ? ' slot-match' : ''}`} style={{marginTop:6}}>
+                                                        <div key={`pavw-${ps.parentId}-${ps.start.toISOString()}`} className={`day-availability-item availability-patient compact${bookingMode && form.patient && String(ps.patientId) === String(form.patient) ? ' slot-match' : ''}`} title={ps.patientName} style={{marginTop:6}}>
                                                             <div className="event-time">{ps.start.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} - {ps.end.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
-                                                            <div className="event-main">{ps.patientName}</div>
+                                                            <div className="event-main">{findPersonShortName(patients, ps.patientId)}</div>
                                                         </div>
                                                     ));
                                                 })()}
