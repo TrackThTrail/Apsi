@@ -9,6 +9,7 @@ export default function Schedules() {
     const [patientAvailabilities, setPatientAvailabilities] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
     const [q, setQ] = useState('');
+    const [filterBy, setFilterBy] = useState<'any'|'patient'|'intern'>('any');
     const [start, setStart] = useState('');
     const [end, setEnd] = useState('');
     const [viewMode, setViewMode] = useState<'day'|'week'|'month'>('week');
@@ -17,7 +18,7 @@ export default function Schedules() {
     const [showSchedulePanel, setShowSchedulePanel] = useState(false);
     const [form, setForm] = useState({ patient: '', intern: '', room_id: '', start_time: '', end_time: '' });
 
-    const fetchSchedules = async (params?: { q?: string; start?: string; end?: string }) => {
+    const fetchSchedules = async (params?: { q?: string; start?: string; end?: string; filterBy?: string }) => {
         setLoading(true);
         try {
             const token = localStorage.getItem('access_token');
@@ -25,6 +26,7 @@ export default function Schedules() {
             if (params?.q) parts.push(`q=${encodeURIComponent(params.q)}`);
             if (params?.start) parts.push(`start=${encodeURIComponent(params.start)}`);
             if (params?.end) parts.push(`end=${encodeURIComponent(params.end)}`);
+            if (params?.filterBy && params.filterBy !== 'any') parts.push(`filter_by=${encodeURIComponent(params.filterBy)}`);
             const url = `http://localhost:8000/api/schedules/${parts.length ? '?' + parts.join('&') : ''}`;
             const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
             if (resp.ok) setSchedules(await resp.json());
@@ -70,7 +72,7 @@ export default function Schedules() {
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
-        fetchSchedules({ q, start, end });
+        fetchSchedules({ q, start, end, filterBy });
     };
 
     const prevDay = () => { const d = new Date(selectedDate); d.setDate(d.getDate() - 1); setSelectedDate(d); };
@@ -121,7 +123,25 @@ export default function Schedules() {
         });
         return slots;
     };
-
+    
+    const findPersonName = (list: any[], value: any, roleLabel = '') => {
+        if (value == null) return '';
+        // value might be an id number/string or an object
+        const id = (typeof value === 'object' && value !== null) ? (value.id ?? value.patient_id ?? value.intern_id ?? null) : value;
+        if (id != null) {
+            const found = list.find(u => String(u.id) === String(id));
+            if (found) return `${found.first_name || ''} ${found.last_name || ''}`.trim();
+        }
+        // if value is already an object with name fields
+        if (typeof value === 'object' && value !== null) {
+            if (value.first_name || value.last_name) return `${value.first_name || ''} ${value.last_name || ''}`.trim();
+            if (value.name) return value.name;
+            if (value.patient_name) return value.patient_name;
+            if (value.intern_name) return value.intern_name;
+        }
+        // fallback to string
+        return String(value);
+    };
     const slotIsOccupied = (internId: any, start: Date, end: Date) => {
         return schedules.some(s => {
             try{
@@ -170,13 +190,22 @@ export default function Schedules() {
         }catch(err){ console.error(err); }
     };
 
+    
+
     return (
         <div className="schedules-page">
             <div className="schedules-grid">
                 <div className="schedules-filter">
                     <h2>Agendamentos</h2>
                     <form onSubmit={handleSearch} className="schedules-search-form">
-                        <input value={q} onChange={e => setQ(e.target.value)} placeholder="Pesquisar por paciente/estagiário/room" />
+                        <div style={{display:'flex', gap:8, alignItems:'center'}}>
+                            <input value={q} onChange={e => setQ(e.target.value)} placeholder="Pesquisar por paciente/estagiário/room" />
+                            <select value={filterBy} onChange={e => setFilterBy(e.target.value as any)}>
+                                <option value="any">Todos</option>
+                                <option value="patient">Paciente</option>
+                                <option value="intern">Estagiário</option>
+                            </select>
+                        </div>
                         <div className="date-range">
                             <label>De</label>
                             <input type="date" value={start} onChange={e => setStart(e.target.value)} />
@@ -292,7 +321,7 @@ export default function Schedules() {
                                                             const pats = getPatientAvailabilitiesForPatientAndDate(patientId, d);
                                                             isMatch = pats.some(pa => { const ps = new Date(pa.start_date); const pe = new Date(pa.end_date); return ps.getTime() < slot.end.getTime() && pe.getTime() > slot.start.getTime(); });
                                                         }
-                                                        const showInternName = bookingMode; // only reveal names in booking mode
+                                                        const showInternName = true; // always reveal intern names
 
                                                         if (occupied) {
                                                             const sched = getScheduleForSlot(slot.internId, slot.start, slot.end);
@@ -366,13 +395,13 @@ export default function Schedules() {
                                 <tbody>
                                     {schedules.map(s => (
                                         <tr key={s.id}>
-                                            <td>{s.id}</td>
-                                            <td>{s.patient}</td>
-                                            <td>{s.intern}</td>
-                                            <td>{s.room_id ?? '-'}</td>
-                                            <td>{new Date(s.start_time).toLocaleString()}</td>
-                                            <td>{new Date(s.end_time).toLocaleString()}</td>
-                                        </tr>
+                                                <td>{s.id}</td>
+                                                <td>{findPersonName(patients, s.patient)}</td>
+                                                <td>{findPersonName(interns, s.intern)}</td>
+                                                <td>{s.room_id ?? '-'}</td>
+                                                <td>{new Date(s.start_time).toLocaleString()}</td>
+                                                <td>{new Date(s.end_time).toLocaleString()}</td>
+                                            </tr>
                                     ))}
                                 </tbody>
                             </table>

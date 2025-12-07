@@ -216,11 +216,17 @@ export default function PatientDetail(){
                     <div className="patient-header">
                         <h2>Paciente</h2>
                         <div className="patient-actions">
-                            <div className="tabs">
-                                <button className={"tab-btn" + (activeTab==='disponibilidades' ? ' active' : '')} onClick={()=>{ setActiveTab('disponibilidades'); setBookingMode(false); }}>Disponibilidades</button>
-                                <button className={"tab-btn" + (activeTab==='agendamentos' ? ' active' : '')} onClick={()=>{ setActiveTab('agendamentos'); }}>Agendamentos</button>
+                                <div className="tabs">
+                                    <button className={"tab-btn" + (activeTab==='disponibilidades' ? ' active' : '')} onClick={()=>{ setActiveTab('disponibilidades'); setBookingMode(false); }}>Disponibilidades</button>
+                                    <button className={"tab-btn" + (activeTab==='agendamentos' ? ' active' : '')} onClick={()=>{ setActiveTab('agendamentos'); }}>Agendamentos</button>
+                                </div>
+                                {/* show add availability button when viewing disponibilidades */}
+                                {activeTab === 'disponibilidades' && (
+                                    <div style={{marginLeft:12}}>
+                                        <button className="btn" onClick={()=>setShowAvailabilityPanel(true)}>Adicionar disponibilidade</button>
+                                    </div>
+                                )}
                             </div>
-                        </div>
                     </div>
 
                     {patient ? (
