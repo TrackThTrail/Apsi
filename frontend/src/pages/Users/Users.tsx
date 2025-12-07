@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import './Users.css';
+import { Link } from 'react-router-dom';
 
 export default function Users() {
     const [users, setUsers] = useState<any[]>([]);
@@ -73,7 +74,7 @@ export default function Users() {
                                     {users.map(u => (
                                         <tr key={u.id}>
                                             <td>{u.id}</td>
-                                            <td>{u.first_name} {u.last_name ? u.last_name : ''}</td>
+                                            <td><Link to={`/users/${u.id}`}>{u.first_name} {u.last_name ? u.last_name : ''}</Link></td>
                                             <td>{u.email}</td>
                                         </tr>
                                     ))}

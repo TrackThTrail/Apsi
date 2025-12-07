@@ -7,12 +7,15 @@ export default function PatientDetail(){
     const [patient, setPatient] = useState<any>(null);
     const [schedules, setSchedules] = useState<any[]>([]);
     const [interns, setInterns] = useState<any[]>([]);
+    const [internAvailabilities, setInternAvailabilities] = useState<any[]>([]);
     const [form, setForm] = useState({ intern: '', room_id: '', start_time: '', end_time: '', av_date: '', av_start_time: '', av_end_time: '' });
     const [showAvailabilityPanel, setShowAvailabilityPanel] = useState(false);
     const [showSchedulePanel, setShowSchedulePanel] = useState(false);
+    const [activeTab, setActiveTab] = useState<'disponibilidades'|'agendamentos'>('disponibilidades');
+    const [bookingMode, setBookingMode] = useState(false);
     const [patientAvailabilities, setPatientAvailabilities] = useState<any[]>([]);
     const [monthStart, setMonthStart] = useState(() => { const d = new Date(); d.setDate(1); return d; });
-    const [viewMode, setViewMode] = useState<'day'|'week'|'month'>('day');
+    const [viewMode, setViewMode] = useState<'day'|'week'|'month'>('week');
     const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
 
     const fetchPatient = async () => {
@@ -47,7 +50,15 @@ export default function PatientDetail(){
         }catch(err){ console.error(err); }
     };
 
-    useEffect(()=>{ fetchPatient(); fetchSchedules(); fetchInterns(); fetchPatientAvailabilities(); }, [id]);
+    const fetchInternAvailabilities = async () => {
+        try{
+            const token = localStorage.getItem('access_token');
+            const resp = await fetch('http://localhost:8000/api/availabilities/', { headers: { Authorization: `Bearer ${token}` } });
+            if(resp.ok) setInternAvailabilities(await resp.json());
+        }catch(err){ console.error(err); }
+    };
+
+    useEffect(()=>{ fetchPatient(); fetchSchedules(); fetchInterns(); fetchPatientAvailabilities(); fetchInternAvailabilities(); }, [id]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm({ ...form, [e.target.name]: e.target.value });
 
@@ -143,6 +154,40 @@ export default function PatientDetail(){
         return list;
     };
 
+    // helpers for booking: build 1-hour slots from intern availabilities for a given day
+    const formatDateTimeLocal = (dt: Date) => {
+        const pad = (n: number) => n.toString().padStart(2,'0');
+        return `${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())}T${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+    };
+
+    const getInternAvailabilitiesForDate = (d: Date) => {
+        const key = d.toISOString().slice(0,10);
+        // filter internAvailabilities by same day
+        return internAvailabilities.filter(a => {
+            try{
+                return new Date(a.start_date).toISOString().slice(0,10) === key;
+            }catch(e){ return false; }
+        }).sort((a,b)=> new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
+    };
+
+    const buildHourlySlotsForDate = (d: Date) => {
+        const avail = getInternAvailabilitiesForDate(d);
+        const slots: Array<{internId:number, internName:string, start: Date, end: Date, availId:number}> = [];
+        avail.forEach(a => {
+            const s = new Date(a.start_date);
+            const e = new Date(a.end_date);
+            // round start up to next hour if minutes > 0
+            let cur = new Date(s);
+            if (cur.getMinutes() !== 0 || cur.getSeconds() !== 0) { cur.setMinutes(0,0,0); cur.setHours(cur.getHours()+1); }
+            while (cur.getTime() + 3600*1000 <= e.getTime()) {
+                const slotEnd = new Date(cur.getTime() + 3600*1000);
+                slots.push({ internId: a.intern || a.intern_id || a.internId, internName: (function(){ const it = interns.find(i => i.id === (a.intern || a.intern_id || a.internId)); return it ? `${it.first_name} ${it.last_name}` : 'Estagiário'; })(), start: new Date(cur), end: slotEnd, availId: a.id });
+                cur = slotEnd;
+            }
+        });
+        return slots;
+    };
+
     return (
         <div className="patient-page">
             <div className="patient-grid">
@@ -150,8 +195,10 @@ export default function PatientDetail(){
                     <div className="patient-header">
                         <h2>Paciente</h2>
                         <div className="patient-actions">
-                            <button className="btn" onClick={() => setShowAvailabilityPanel(true)}>Editar disponibilidade</button>
-                            <button className="btn" onClick={() => setShowSchedulePanel(true)}>Adicionar agendamento</button>
+                            <div className="tabs">
+                                <button className={"tab-btn" + (activeTab==='disponibilidades' ? ' active' : '')} onClick={()=>{ setActiveTab('disponibilidades'); setBookingMode(false); }}>Disponibilidades</button>
+                                <button className={"tab-btn" + (activeTab==='agendamentos' ? ' active' : '')} onClick={()=>{ setActiveTab('agendamentos'); }}>Agendamentos</button>
+                            </div>
                         </div>
                     </div>
 
@@ -164,6 +211,14 @@ export default function PatientDetail(){
                     ) : <div>Carregando...</div>}
 
                     <div className="calendar">
+                        {/* If in agendamentos tab, show booking controls */}
+                        {activeTab === 'agendamentos' && (
+                            <div style={{marginBottom:12}}>
+                                <button className="btn" onClick={()=>{ setBookingMode(b => !b); setShowSchedulePanel(false); }}>
+                                    {bookingMode ? 'Cancelar agendamento' : 'Realizar agendamento'}
+                                </button>
+                            </div>
+                        )}
                         <div className="calendar-header">
                             <div style={{display:'flex',gap:8}}>
                                 <button className={"btn" + (viewMode==='day' ? ' active' : '')} onClick={()=>setViewMode('day')}>Dia</button>
@@ -203,28 +258,56 @@ export default function PatientDetail(){
                             <div className="day-view">
                                 <div className="day-schedule-list">
                                     {(() => {
-                                        const avs = getAvailabilitiesForDate(selectedDate);
-                                        const evs = getSchedulesForDate(selectedDate);
-                                        return (
-                                            <>
-                                                {avs.map(a => (
-                                                    <div key={`av-${a.id}`} className="day-availability-item">
-                                                        <div className="event-time">{new Date(a.start_date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - {new Date(a.end_date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
-                                                        <div className="event-main">Disponível</div>
-                                                    </div>
-                                                ))}
-                                                {evs.length === 0 && avs.length === 0 ? (
-                                                    <div className="empty">Nenhum agendamento neste dia.</div>
-                                                ) : (
-                                                    evs.map(ev => (
-                                                        <div key={ev.id} className="day-schedule-item">
-                                                            <div className="event-time">{new Date(ev.start_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - {new Date(ev.end_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
-                                                            <div className="event-main">{ev.intern} — Sala {ev.room_id ?? '-'}</div>
+                                        if (activeTab === 'disponibilidades') {
+                                            const avs = getAvailabilitiesForDate(selectedDate);
+                                            const evs = getSchedulesForDate(selectedDate);
+                                            return (
+                                                <>
+                                                    {avs.map(a => (
+                                                        <div key={`av-${a.id}`} className="day-availability-item">
+                                                            <div className="event-time">{new Date(a.start_date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - {new Date(a.end_date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                                                            <div className="event-main">Disponível</div>
                                                         </div>
-                                                    ))
-                                                )}
-                                            </>
-                                        );
+                                                    ))}
+                                                    {evs.length === 0 && avs.length === 0 ? (
+                                                        <div className="empty">Nenhum agendamento neste dia.</div>
+                                                    ) : (
+                                                        evs.map(ev => (
+                                                            <div key={ev.id} className="day-schedule-item">
+                                                                <div className="event-time">{new Date(ev.start_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - {new Date(ev.end_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                                                                <div className="event-main">{ev.intern} — Sala {ev.room_id ?? '-'}</div>
+                                                            </div>
+                                                        ))
+                                                    )}
+                                                </>
+                                            );
+                                        }
+
+                                        // agendamentos booking mode: show hourly slots for selectedDate
+                                        const slots = buildHourlySlotsForDate(selectedDate);
+                                        if (!bookingMode) {
+                                            // show existing schedules
+                                            const evs = getSchedulesForDate(selectedDate);
+                                            return evs.length === 0 ? <div className="empty">Nenhum agendamento neste dia.</div> : evs.map(ev => (
+                                                <div key={ev.id} className="day-schedule-item">
+                                                    <div className="event-time">{new Date(ev.start_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - {new Date(ev.end_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                                                    <div className="event-main">{ev.intern} — Sala {ev.room_id ?? '-'}</div>
+                                                </div>
+                                            ));
+                                        }
+
+                                        // render slots grouped by intern
+                                        if (slots.length === 0) return <div className="empty">Nenhum horário disponível neste dia.</div>;
+                                        return slots.map(slot => (
+                                            <div key={`slot-${slot.internId}-${slot.start.toISOString()}`} className="day-availability-item availability-intern" style={{cursor:'pointer'}} onClick={() => {
+                                                // on click, prefill form and open schedule panel
+                                                setForm({ ...form, intern: String(slot.internId), start_time: formatDateTimeLocal(slot.start), end_time: formatDateTimeLocal(slot.end) });
+                                                setShowSchedulePanel(true);
+                                            }}>
+                                                <div className="event-time">{slot.start.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} - {slot.end.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
+                                                <div className="event-main">{slot.internName}</div>
+                                            </div>
+                                        ));
                                     })()}
                                 </div>
                             </div>
@@ -238,18 +321,40 @@ export default function PatientDetail(){
                                         <div key={d.toISOString()} className="week-day">
                                             <div className="week-day-header">{d.toLocaleDateString(undefined,{ weekday: 'short', day:'numeric' })}</div>
                                             <div className="week-day-body">
-                                                {getAvailabilitiesForDate(d).map(a => (
-                                                    <div key={`av-${a.id}`} className="calendar-availability" style={{padding:'6px', borderRadius:6, marginBottom:6}}>
-                                                        <div className="event-time">{new Date(a.start_date).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} - {new Date(a.end_date).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
-                                                        <div className="event-main">Disponível</div>
-                                                    </div>
-                                                ))}
-                                                {getSchedulesForDate(d).map(ev => (
-                                                    <div key={ev.id} className="calendar-schedule" style={{padding:'6px', borderRadius:6, marginBottom:6}}>
-                                                        <div className="event-time">{new Date(ev.start_time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
-                                                        <div className="event-main">{ev.intern} — Sala {ev.room_id ?? '-'}</div>
-                                                    </div>
-                                                ))}
+                                                {activeTab === 'disponibilidades' ? (
+                                                    <>
+                                                        {getAvailabilitiesForDate(d).map(a => (
+                                                            <div key={`av-${a.id}`} className="calendar-availability" style={{padding:'6px', borderRadius:6, marginBottom:6}}>
+                                                                <div className="event-time">{new Date(a.start_date).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} - {new Date(a.end_date).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
+                                                                <div className="event-main">Disponível</div>
+                                                            </div>
+                                                        ))}
+                                                        {getSchedulesForDate(d).map(ev => (
+                                                            <div key={ev.id} className="calendar-schedule" style={{padding:'6px', borderRadius:6, marginBottom:6}}>
+                                                                <div className="event-time">{new Date(ev.start_time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
+                                                                <div className="event-main">{ev.intern} — Sala {ev.room_id ?? '-'}</div>
+                                                            </div>
+                                                        ))}
+                                                    </>
+                                                ) : (
+                                                    // agendamentos tab: if bookingMode show intern hourly slots per day
+                                                    (() => {
+                                                        if (!bookingMode) return getSchedulesForDate(d).map(ev => (
+                                                            <div key={ev.id} className="calendar-schedule" style={{padding:'6px', borderRadius:6, marginBottom:6}}>
+                                                                <div className="event-time">{new Date(ev.start_time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
+                                                                <div className="event-main">{ev.intern} — Sala {ev.room_id ?? '-'}</div>
+                                                            </div>
+                                                        ));
+                                                        const slots = buildHourlySlotsForDate(d);
+                                                        if (slots.length === 0) return <div className="empty">Nenhum horário disponível neste dia.</div>;
+                                                        return slots.map(slot => (
+                                                            <div key={`slot-${slot.internId}-${slot.start.toISOString()}`} className="calendar-availability availability-intern" style={{padding:6, borderRadius:6, marginBottom:6, cursor:'pointer'}} onClick={() => { setForm({ ...form, intern: String(slot.internId), start_time: formatDateTimeLocal(slot.start), end_time: formatDateTimeLocal(slot.end) }); setShowSchedulePanel(true); }}>
+                                                                <div className="event-time">{slot.start.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} - {slot.end.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
+                                                                <div className="event-main">{slot.internName}</div>
+                                                            </div>
+                                                        ));
+                                                    })()
+                                                )}
                                             </div>
                                         </div>
                                     ));

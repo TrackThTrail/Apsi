@@ -43,6 +43,12 @@
 
 .patient-header { display:flex; align-items:center; justify-content:space-between; gap:1rem; }
 .patient-actions { display:flex; gap:0.6rem; }
+
+/* Tabs for patient detail */
+.tabs { display:flex; align-items:center; gap:0.5rem; }
+.tab-btn { padding: 0.45rem 0.75rem; background: transparent; border: 1px solid rgba(255,255,255,0.04); border-radius: 8px; color: #e6eef8; cursor: pointer; font-weight:700; }
+.tab-btn:hover { filter: brightness(0.95); }
+.tab-btn.active { background: #0a84ff; color: #fff; border-color: rgba(10,132,255,0.9); }
 .btn { padding: 0.45rem 0.75rem; background:#0b5; border-radius:8px; border:none; color:#042; font-weight:700; cursor:pointer; }
 .btn:hover { filter:brightness(0.95); }
 

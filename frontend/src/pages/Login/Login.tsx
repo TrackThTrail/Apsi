@@ -34,7 +34,8 @@ export default function Login() {
                 window.dispatchEvent(new Event('authChange'));
 
                 // navigate to schedules (default page)
-                navigate('/schedules', { replace: true });
+                // use a full navigation to avoid possible routing/refresh races
+                try { window.location.href = '/schedules'; } catch(e) { navigate('/schedules', { replace: true }); }
             } catch (err) {
                 console.error('Login error', err);
                 alert('Erro ao conectar com o servidor');

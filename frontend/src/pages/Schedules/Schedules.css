@@ -12,3 +12,30 @@
 .schedules-table th, .schedules-table td { padding: 0.75rem; border-bottom: 1px solid rgba(255,255,255,0.04); text-align:left; }
 .schedules-table thead th { color: rgba(248,250,252,0.9); font-weight:600; }
 .schedules-table tbody tr:hover { background: rgba(255,255,255,0.02); }
+
+/* calendar styles reused from PatientDetail */
+.calendar-header.controls { display:flex; justify-content:space-between; gap:12px; align-items:center; margin-bottom:8px; }
+.calendar-area { margin-bottom: 1rem; }
+.calendar-title { font-weight:700; color: #e6eef8; }
+.btn { padding: 0.45rem 0.75rem; background:#0b5; border-radius:8px; border:none; color:#042; font-weight:700; cursor:pointer; }
+.btn[disabled] { opacity: 0.45; cursor: not-allowed; }
+.btn.active { background: #0a84ff; color: #fff; }
+.day-view { padding: 0.5rem; }
+.day-schedule-list { display:flex; flex-direction:column; gap:8px; }
+.day-schedule-item { background: rgba(255,255,255,0.02); padding:10px; border-radius:8px; display:flex; gap:12px; align-items:center; }
+.day-schedule-item .event-time { font-weight:700; color:#9cc3ff; width:140px; }
+.day-schedule-item .event-main { color:#dfe9ff; }
+.day-availability-item { background: rgba(34,197,94,0.06); padding:10px; border-radius:8px; display:flex; gap:12px; align-items:center; border:1px solid rgba(34,197,94,0.12); }
+.day-availability-item .event-time { font-weight:700; color:#16a34a; }
+.day-availability-item .event-main { color:#dfffe6; }
+
+/* week grid */
+.week-grid { display:grid; grid-template-columns: repeat(7, 1fr); gap:8px; margin-top:8px; }
+.week-day { background: rgba(255,255,255,0.02); padding:8px; border-radius:8px; min-height:140px; }
+.week-day-header { font-weight:700; color:#e6eef8; margin-bottom:6px; }
+.week-day-body { display:flex; flex-direction:column; gap:6px; }
+
+/* colors for availability types */
+.availability-intern { background: linear-gradient(90deg, rgba(34,197,94,0.12), rgba(16,185,129,0.06)); border: 1px solid rgba(34,197,94,0.16); color: #dfffe6; }
+.availability-patient { background: linear-gradient(90deg, rgba(14,165,233,0.08), rgba(59,130,246,0.04)); border: 1px solid rgba(14,165,233,0.12); color: #e6f7ff; }
+.calendar-schedule { background: linear-gradient(90deg, rgba(10,132,255,0.15), rgba(10,84,255,0.06)); border: 1px solid rgba(10,132,255,0.12); }
