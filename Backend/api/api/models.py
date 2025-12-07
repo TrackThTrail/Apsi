@@ -33,8 +33,9 @@ class Estagiario(models.Model):
 class Availability(models.Model):
     # availability represents an intern's available date range (no patient)
     intern = models.ForeignKey(Estagiario, related_name='availabilities', on_delete=models.CASCADE)
-    start_date = models.DateField()
-    end_date = models.DateField()
+    # store availability with date+time so UI can pick day and start/end times
+    start_date = models.DateTimeField()
+    end_date = models.DateTimeField()
 
     def __str__(self):
         return f"Availability intern={self.intern_id} {self.start_date} - {self.end_date}"
