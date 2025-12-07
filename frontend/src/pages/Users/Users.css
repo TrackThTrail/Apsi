@@ -7,13 +7,6 @@
 }
 
 .users-list {
-	grid-template-columns: 1fr 380px;
-	gap: 1.25rem;
-	max-width: 1200px;
-	margin: 0 auto;
-}
-
-.users-list {
 	background: rgb(19 31 61 / 95%);
 	color: #fff;
 	padding: 1.25rem;

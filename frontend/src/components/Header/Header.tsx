@@ -25,6 +25,14 @@ export default function Header() {
         navigate('/turmas');
     };
 
+    const handlePatients = () => {
+        navigate('/patients');
+    };
+
+    const handleSchedules = () => {
+        navigate('/schedules');
+    };
+
     // no modal: navigation to pages instead
 
     const handleLogout = () => {
@@ -46,14 +54,20 @@ export default function Header() {
                 </div>
 
                 <div className="header-right">
+                    <button className="btn" onClick={handleSchedules}>
+                        Agendamentos
+                    </button>
                     <button className="btn" onClick={handleEquipe}>
-                        Equipe
+                        Estagiários
+                    </button>
+                    <button className="btn" onClick={handlePatients}>
+                        Pacientes
                     </button>
                     <button className="btn" onClick={handleTurmas}>
                         Turmas
                     </button>
                     <button className="btn btn-logout" onClick={handleLogout}>
-                        Logout
+                        Sair
                     </button>
                 </div>
             </div>

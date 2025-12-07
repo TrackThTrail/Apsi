@@ -33,8 +33,8 @@ export default function Login() {
                 // notify other components in this tab that auth changed
                 window.dispatchEvent(new Event('authChange'));
 
-                // navigate to dashboard (single-page navigation)
-                navigate('/dashboard', { replace: true });
+                // navigate to schedules (default page)
+                navigate('/schedules', { replace: true });
             } catch (err) {
                 console.error('Login error', err);
                 alert('Erro ao conectar com o servidor');

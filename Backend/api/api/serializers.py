@@ -1,6 +1,6 @@
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
-from .models import Turma
+from .models import Turma, Patient, Estagiario, Availability, Schedule, PatientAvailability
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -38,3 +38,34 @@ class TurmaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Turma
         fields = ('id', 'name', 'description', 'start_date', 'end_date')
+
+
+class PatientSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Patient
+        fields = ('id', 'first_name', 'last_name', 'email', 'phone')
+
+
+class EstagiarioSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Estagiario
+        fields = ('id', 'first_name', 'last_name', 'email')
+
+
+class AvailabilitySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Availability
+        fields = ('id', 'intern', 'start_date', 'end_date')
+
+
+class ScheduleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Schedule
+        fields = ('id', 'intern', 'patient', 'room_id', 'start_time', 'end_time')
+
+
+class PatientAvailabilitySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PatientAvailability
+        fields = ('id', 'patient', 'start_date', 'end_date')
+        # DRF will map DateTimeField automatically; keep ISO format in/out

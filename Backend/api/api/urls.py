@@ -23,11 +23,16 @@ from .token_views import EmailTokenObtainPairView
 from .users_views import UserListView
 from rest_framework import routers
 from django.urls import include
-from .viewsets import UserViewSet, TurmaViewSet
+from .viewsets import UserViewSet, TurmaViewSet, PatientViewSet, EstagiarioViewSet, AvailabilityViewSet, ScheduleViewSet, PatientAvailabilityViewSet
 
 router = routers.DefaultRouter()
 router.register(r'users', UserViewSet, basename='user')
 router.register(r'turmas', TurmaViewSet, basename='turma')
+router.register(r'patients', PatientViewSet, basename='patient')
+router.register(r'estagiarios', EstagiarioViewSet, basename='estagiario')
+router.register(r'availabilities', AvailabilityViewSet, basename='availability')
+router.register(r'schedules', ScheduleViewSet, basename='schedule')
+router.register(r'patientavailabilities', PatientAvailabilityViewSet, basename='patientavailability')
 
 urlpatterns = [
     path('admin/', admin.site.urls),

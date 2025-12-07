@@ -1,0 +1,14 @@
+.schedules-grid { max-width: 1200px; margin: 0 auto; padding: 1rem; display: grid; grid-template-columns: 1fr; gap: 1rem; }
+
+.schedules-filter { background: rgb(19 31 61 / 95%); color: #fff; padding: 1rem; border-radius: 12px; box-shadow: 0 8px 20px rgba(2,6,23,0.12); }
+.schedules-search-form { display: flex; flex-direction: column; gap: 0.5rem; }
+.schedules-search-form input[type="text"], .schedules-search-form input[type="date"] { padding: 0.5rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.06); background: #0f172a; color: #f8fafc; }
+.schedules-search-form .date-range { display:flex; gap:0.5rem; align-items:center; }
+.schedules-search-form button { padding: 0.6rem 1rem; background:#130830; color:#fff; border:none; border-radius:8px; cursor:pointer; }
+
+.schedules-list { background: rgb(19 31 61 / 95%); color: #fff; padding: 1rem; border-radius: 12px; box-shadow: 0 8px 20px rgba(2,6,23,0.12); }
+.table-wrap { overflow:auto; }
+.schedules-table { width:100%; border-collapse:collapse; }
+.schedules-table th, .schedules-table td { padding: 0.75rem; border-bottom: 1px solid rgba(255,255,255,0.04); text-align:left; }
+.schedules-table thead th { color: rgba(248,250,252,0.9); font-weight:600; }
+.schedules-table tbody tr:hover { background: rgba(255,255,255,0.02); }

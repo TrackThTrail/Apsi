@@ -1,67 +1,53 @@
 import React, { useEffect, useState } from 'react';
-import './Users.css';
+import { useNavigate } from 'react-router-dom';
+import './Patients.css';
 
-export default function Users() {
-    const [users, setUsers] = useState<any[]>([]);
+export default function Patients() {
+    const [patients, setPatients] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
-    const [form, setForm] = useState({ first_name: '', last_name: '', email: '' });
+    const [form, setForm] = useState({ first_name: '', last_name: '', email: '', phone: '' });
+    const navigate = useNavigate();
 
-    const fetchUsers = async () => {
+    const fetchPatients = async () => {
         setLoading(true);
         try {
             const token = localStorage.getItem('access_token');
-            const resp = await fetch('http://localhost:8000/api/estagiarios/', {
+            const resp = await fetch('http://localhost:8000/api/patients/', {
                 headers: { Authorization: `Bearer ${token}` },
             });
-            if (resp.ok) {
-                setUsers(await resp.json());
-            }
+            if (resp.ok) setPatients(await resp.json());
         } catch (err) {
             console.error(err);
-        } finally {
-            setLoading(false);
-        }
+        } finally { setLoading(false); }
     };
 
-    useEffect(() => { fetchUsers(); }, []);
+    useEffect(() => { fetchPatients(); }, []);
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setForm({ ...form, [e.target.name]: e.target.value });
-    };
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, [e.target.name]: e.target.value });
 
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
             const token = localStorage.getItem('access_token');
-            const resp = await fetch('http://localhost:8000/api/estagiarios/', {
+            const resp = await fetch('http://localhost:8000/api/patients/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                body: JSON.stringify({
-                    first_name: form.first_name,
-                    last_name: form.last_name,
-                    email: form.email,
-                }),
+                body: JSON.stringify(form),
             });
-            if (resp.ok) {
-                setForm({ first_name: '', last_name: '', email: '' });
-                fetchUsers();
-            } else {
-                console.error('create failed', await resp.text());
-            }
-        } catch (err) {
-            console.error(err);
-        }
+            if (resp.ok) { setForm({ first_name: '', last_name: '', email: '', phone: '' }); fetchPatients(); }
+            else console.error('create failed', await resp.text());
+        } catch (err) { console.error(err); }
     };
 
     return (
-        <div className="users-page">
-            <div className="users-grid">
-                <div className="users-list">
-                        <h2>Estagiários</h2>
+        <div className="patients-page">
+            <div className="patients-grid">
+                <div className="patients-list">
+                    <h2>Pacientes</h2>
                     {loading && <div>Carregando...</div>}
                     {!loading && (
                         <div className="table-wrap">
-                            <table className="users-table">
+                            <table className="patients-table">
                                 <thead>
                                     <tr>
                                         <th>ID</th>
@@ -70,11 +56,11 @@ export default function Users() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {users.map(u => (
-                                        <tr key={u.id}>
-                                            <td>{u.id}</td>
-                                            <td>{u.first_name} {u.last_name ? u.last_name : ''}</td>
-                                            <td>{u.email}</td>
+                                    {patients.map(p => (
+                                        <tr key={p.id} onClick={() => navigate(`/patients/${p.id}`)} style={{ cursor: 'pointer' }}>
+                                            <td>{p.id}</td>
+                                            <td>{p.first_name} {p.last_name}</td>
+                                            <td>{p.email}</td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -83,12 +69,13 @@ export default function Users() {
                     )}
                 </div>
 
-                <div className="users-form users-form-below">
-                    <h2>Adicionar estagiário</h2>
+                <div className="patients-form">
+                    <h2>Criar paciente</h2>
                     <form onSubmit={handleCreate}>
                         <input name="first_name" value={form.first_name} onChange={handleChange} placeholder="First name" />
                         <input name="last_name" value={form.last_name} onChange={handleChange} placeholder="Last name" />
                         <input name="email" value={form.email} onChange={handleChange} placeholder="Email" />
+                        <input name="phone" value={form.phone} onChange={handleChange} placeholder="Telefone" />
                         <button type="submit">Criar</button>
                     </form>
                 </div>

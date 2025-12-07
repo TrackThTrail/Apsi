@@ -1,0 +1,64 @@
+.patient-grid { display: grid; grid-template-columns: 1fr; gap: 1rem; max-width: 1100px; margin: 0 auto; }
+.patient-info { background: rgb(19 31 61 / 95%); color: #fff; padding: 1.25rem; border-radius: 12px; box-shadow: 0 10px 30px rgba(2,6,23,0.12); }
+.patient-form { background: rgb(19 31 61 / 95%); color: #fff; padding: 1.25rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.04); box-shadow: 0 8px 20px rgba(2,6,23,0.12); }
+.table-wrap { overflow:auto; }
+.patient-availability-table { width: 100%; border-collapse: collapse; margin-top: 0.75rem; }
+.patient-availability-table th, .patient-availability-table td { text-align: left; padding: 0.85rem 0.75rem; border-bottom: 1px solid rgba(255,255,255,0.04); }
+.patient-availability-table thead th { color: rgba(248,250,252,0.9); font-weight: 600; }
+.patient-availability-table tbody tr:hover { background: rgba(255,255,255,0.02); }
+.patient-form input, .patient-form select { width: 100%; padding: 0.6rem; margin-bottom: 0.6rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.06); background: #0f172a; color: #f8fafc; }
+.patient-form button { padding: 0.6rem 1rem; background: #130830; color: #fafafa; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }
+.patient-form button:hover { filter: brightness(0.95); }
+.btn-del { padding: 0.4rem 0.6rem; background: #601010; color: #fff; border: none; border-radius: 6px; cursor: pointer; }
+.btn-del:hover { filter: brightness(0.95); }
+
+/* Calendar styles */
+.calendar { margin-top: 1rem; background: rgba(255,255,255,0.02); padding: 1rem; border-radius: 10px; }
+.calendar-header { display:flex; align-items:center; justify-content:space-between; gap:1rem; margin-bottom:0.5rem; }
+.calendar-title { font-weight:700; color: #e6eef8; }
+.calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.weekday { text-align:center; font-weight:600; color: rgba(230,240,255,0.6); padding: 6px 0; }
+.calendar-cell { min-height: 90px; background: transparent; padding: 6px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.02); }
+.calendar-day-number { font-size: 0.9rem; color: rgba(230,240,255,0.8); margin-bottom:6px; }
+.calendar-events { display:flex; flex-direction:column; gap:6px; }
+.calendar-event { background: rgba(255,255,255,0.03); padding:6px; border-radius:6px; color:#dfe9ff; font-size:0.85rem; display:flex; justify-content:space-between; gap:8px; }
+.event-time { font-weight:700; color:#9cc3ff; margin-right:6px; }
+.event-label { color:#dfe9ff; opacity:0.95; }
+
+/* schedule vs availability colors */
+.calendar-schedule { background: linear-gradient(90deg, rgba(10,132,255,0.15), rgba(10,84,255,0.06)); border: 1px solid rgba(10,132,255,0.12); }
+.calendar-availability { background: linear-gradient(90deg, rgba(34,197,94,0.12), rgba(16,185,129,0.06)); border: 1px solid rgba(34,197,94,0.16); color: #dfffe6; }
+
+.day-availability-item { background: rgba(34,197,94,0.06); padding:10px; border-radius:8px; display:flex; gap:12px; align-items:center; border:1px solid rgba(34,197,94,0.12); }
+.day-availability-item .event-time { font-weight:700; color:#16a34a; }
+.day-availability-item .event-main { color:#dfffe6; }
+
+/* fullscreen panels */
+.fullscreen-panel { position: fixed; inset: 0; background: rgba(2,6,23,0.9); z-index: 60; display:flex; align-items:center; justify-content:center; padding: 2rem; }
+.panel-inner { background: linear-gradient(180deg, rgba(20,30,60,0.98), rgba(10,14,30,0.98)); color:#fff; width: min(900px, 96%); max-height: 92%; overflow:auto; border-radius: 12px; padding: 1.25rem; position: relative; }
+.panel-close { position: absolute; right: 12px; top: 8px; background: transparent; border: none; color: #fff; font-size: 1.2rem; cursor:pointer; }
+.panel-form { display:flex; flex-direction:column; gap:0.6rem; margin-top:0.75rem; }
+.panel-form input, .panel-form select { padding: 0.6rem; border-radius:8px; border:1px solid rgba(255,255,255,0.04); background:#071224; color:#f8fafc; }
+.panel-form button { margin-top:0.6rem; padding:0.6rem 0.9rem; border-radius:8px; background:#164e63; color:#fff; border:none; cursor:pointer; font-weight:700; }
+
+.patient-header { display:flex; align-items:center; justify-content:space-between; gap:1rem; }
+.patient-actions { display:flex; gap:0.6rem; }
+.btn { padding: 0.45rem 0.75rem; background:#0b5; border-radius:8px; border:none; color:#042; font-weight:700; cursor:pointer; }
+.btn:hover { filter:brightness(0.95); }
+
+.btn[disabled] { opacity: 0.45; cursor: not-allowed; }
+.btn.active { background: #0a84ff; color: #fff; }
+
+.day-view { padding: 0.5rem; }
+.day-schedule-list { display:flex; flex-direction:column; gap:8px; }
+.day-schedule-item { background: rgba(255,255,255,0.02); padding:10px; border-radius:8px; display:flex; gap:12px; align-items:center; }
+.day-schedule-item .event-time { font-weight:700; color:#9cc3ff; width:110px; }
+.day-schedule-item .event-main { color:#dfe9ff; }
+.empty { color: rgba(255,255,255,0.6); padding:12px; }
+
+/* week grid */
+.week-grid { display:grid; grid-template-columns: repeat(7, 1fr); gap:8px; margin-top:8px; }
+.week-day { background: rgba(255,255,255,0.02); padding:8px; border-radius:8px; min-height:140px; }
+.week-day-header { font-weight:700; color:#e6eef8; margin-bottom:6px; }
+.week-day-body { display:flex; flex-direction:column; gap:6px; }
+
