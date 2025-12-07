@@ -39,3 +39,6 @@
 .availability-intern { background: linear-gradient(90deg, rgba(34,197,94,0.12), rgba(16,185,129,0.06)); border: 1px solid rgba(34,197,94,0.16); color: #dfffe6; }
 .availability-patient { background: linear-gradient(90deg, rgba(14,165,233,0.08), rgba(59,130,246,0.04)); border: 1px solid rgba(14,165,233,0.12); color: #e6f7ff; }
 .calendar-schedule { background: linear-gradient(90deg, rgba(10,132,255,0.15), rgba(10,84,255,0.06)); border: 1px solid rgba(10,132,255,0.12); }
+
+/* highlighted match where patient availability and intern availability overlap */
+.slot-match { box-shadow: 0 0 0 3px rgba(255,193,7,0.12) inset; border-color: rgba(250,204,21,0.28); background-image: linear-gradient(90deg, rgba(250,204,21,0.06), rgba(250,193,7,0.02)); }

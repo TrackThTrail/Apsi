@@ -4,6 +4,8 @@ import './Schedules.css';
 export default function Schedules() {
     const [schedules, setSchedules] = useState<any[]>([]);
     const [availabilities, setAvailabilities] = useState<any[]>([]); // intern availabilities
+    const [interns, setInterns] = useState<any[]>([]);
+    const [patients, setPatients] = useState<any[]>([]);
     const [patientAvailabilities, setPatientAvailabilities] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
     const [q, setQ] = useState('');
@@ -11,6 +13,9 @@ export default function Schedules() {
     const [end, setEnd] = useState('');
     const [viewMode, setViewMode] = useState<'day'|'week'|'month'>('week');
     const [selectedDate, setSelectedDate] = useState<Date>(()=>new Date());
+    const [bookingMode, setBookingMode] = useState(false);
+    const [showSchedulePanel, setShowSchedulePanel] = useState(false);
+    const [form, setForm] = useState({ patient: '', intern: '', room_id: '', start_time: '', end_time: '' });
 
     const fetchSchedules = async (params?: { q?: string; start?: string; end?: string }) => {
         setLoading(true);
@@ -37,6 +42,22 @@ export default function Schedules() {
         }catch(e){ console.error(e); }
     };
 
+    const fetchInterns = async () => {
+        try{
+            const token = localStorage.getItem('access_token');
+            const resp = await fetch('http://localhost:8000/api/estagiarios/', { headers: { Authorization: `Bearer ${token}` } });
+            if(resp.ok) setInterns(await resp.json());
+        }catch(e){ console.error(e); }
+    };
+
+    const fetchPatients = async () => {
+        try{
+            const token = localStorage.getItem('access_token');
+            const resp = await fetch('http://localhost:8000/api/patients/', { headers: { Authorization: `Bearer ${token}` } });
+            if(resp.ok) setPatients(await resp.json());
+        }catch(e){ console.error(e); }
+    };
+
     const fetchPatientAvailabilities = async () => {
         try{
             const token = localStorage.getItem('access_token');
@@ -45,7 +66,7 @@ export default function Schedules() {
         }catch(e){ console.error(e); }
     };
 
-    useEffect(() => { fetchSchedules(); fetchAvailabilities(); fetchPatientAvailabilities(); }, []);
+    useEffect(() => { fetchSchedules(); fetchAvailabilities(); fetchPatientAvailabilities(); fetchInterns(); fetchPatients(); }, []);
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
@@ -64,6 +85,90 @@ export default function Schedules() {
     const getSchedulesForDate = (d: Date) => { const key = d.toISOString().slice(0,10); return (schedulesByDate[key] || []).slice().sort((a,b)=> new Date(a.start_time).getTime() - new Date(b.start_time).getTime()); };
     const getAvailForDate = (d: Date) => { const key = d.toISOString().slice(0,10); return (availByDate[key] || []).slice().sort((a,b)=> new Date(a.start_date).getTime() - new Date(b.start_date).getTime()); };
     const getPatientAvailForDate = (d: Date) => { const key = d.toISOString().slice(0,10); return (patientAvailByDate[key] || []).slice().sort((a,b)=> new Date(a.start_date).getTime() - new Date(b.start_date).getTime()); };
+
+    const pad = (n: number) => n.toString().padStart(2,'0');
+    const formatDateTimeLocal = (dt: Date) => `${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())}T${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+
+    const getInternAvailabilitiesForDate = (d: Date) => {
+        const key = d.toISOString().slice(0,10);
+        return availabilities.filter(a => {
+            try{ return new Date(a.start_date).toISOString().slice(0,10) === key; }catch(e){ return false; }
+        }).sort((a,b)=> new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
+    };
+
+    const getPatientAvailabilitiesForPatientAndDate = (patientId: any, d: Date) => {
+        const key = d.toISOString().slice(0,10);
+        return patientAvailabilities.filter(a => {
+            try{ return (String(a.patient) === String(patientId) || String(a.patient_id) === String(patientId)) && new Date(a.start_date).toISOString().slice(0,10) === key; }catch(e){ return false; }
+        }).sort((a,b)=> new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
+    };
+
+    const buildHourlySlotsForDate = (d: Date) => {
+        const avail = getInternAvailabilitiesForDate(d);
+        const slots: Array<{internId:number, internName:string, start: Date, end: Date}> = [];
+        avail.forEach(a => {
+            const s = new Date(a.start_date);
+            const e = new Date(a.end_date);
+            let cur = new Date(s);
+            if (cur.getMinutes() !== 0 || cur.getSeconds() !== 0) { cur.setMinutes(0,0,0); cur.setHours(cur.getHours()+1); }
+            while (cur.getTime() + 3600*1000 <= e.getTime()) {
+                const slotEnd = new Date(cur.getTime() + 3600*1000);
+                const internId = a.intern ?? a.intern_id ?? a.internId ?? null;
+                const it = interns.find(i => i.id === internId) || interns.find(i => String(i.id) === String(internId));
+                slots.push({ internId: internId, internName: it ? `${it.first_name} ${it.last_name}` : 'Estagiário', start: new Date(cur), end: slotEnd });
+                cur = slotEnd;
+            }
+        });
+        return slots;
+    };
+
+    const slotIsOccupied = (internId: any, start: Date, end: Date) => {
+        return schedules.some(s => {
+            try{
+                const sid = s.intern ?? s.intern_id ?? s.internId ?? null;
+                if (String(sid) !== String(internId)) return false;
+                const ss = new Date(s.start_time);
+                const se = new Date(s.end_time);
+                // overlap if ss < end && se > start
+                return ss.getTime() < end.getTime() && se.getTime() > start.getTime();
+            }catch(e){ return false; }
+        });
+    };
+
+    const getScheduleForSlot = (internId: any, start: Date, end: Date) => {
+        return schedules.find(s => {
+            try{
+                const sid = s.intern ?? s.intern_id ?? s.internId ?? null;
+                if (String(sid) !== String(internId)) return false;
+                const ss = new Date(s.start_time);
+                const se = new Date(s.end_time);
+                return ss.getTime() < end.getTime() && se.getTime() > start.getTime();
+            }catch(e){ return false; }
+        }) || null;
+    };
+
+    const handleSlotClick = (slot: {internId:any, start:Date, end:Date}) => {
+        if (slotIsOccupied(slot.internId, slot.start, slot.end)) return; // ignore occupied
+        if (!form.patient) { alert('Selecione um paciente antes de escolher um horário.'); return; }
+        setForm({ ...form, intern: String(slot.internId), start_time: formatDateTimeLocal(slot.start), end_time: formatDateTimeLocal(slot.end) });
+        setShowSchedulePanel(true);
+    };
+
+    const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm({ ...form, [e.target.name]: e.target.value });
+
+    const handleCreateSchedule = async (e: React.FormEvent) => {
+        e.preventDefault();
+        try{
+            const token = localStorage.getItem('access_token');
+            const resp = await fetch('http://localhost:8000/api/schedules/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ intern: form.intern, patient: form.patient, room_id: form.room_id || null, start_time: new Date(form.start_time).toISOString(), end_time: new Date(form.end_time).toISOString() })
+            });
+            if(resp.ok){ setForm({ patient: '', intern: '', room_id: '', start_time: '', end_time: '' }); fetchSchedules(); setShowSchedulePanel(false); }
+            else console.error('create failed', await resp.text());
+        }catch(err){ console.error(err); }
+    };
 
     return (
         <div className="schedules-page">
@@ -107,18 +212,60 @@ export default function Schedules() {
                     </div>
 
                     <div className="calendar-area">
+                        <div style={{marginBottom:12, display:'flex', gap:8, alignItems:'center'}}>
+                            <button className="btn" onClick={()=>{ setBookingMode(b=>!b); setShowSchedulePanel(false); if(bookingMode) setForm({ ...form, patient: '' }); }}>
+                                {bookingMode ? 'Cancelar agendamento' : 'Realizar agendamento'}
+                            </button>
+                            {/* when bookingMode is active show patient selector so user must pick a patient before selecting a slot */}
+                            {bookingMode && (
+                                <div style={{display:'flex', gap:8, alignItems:'center'}}>
+                                    <label style={{color:'#cfe8ff', fontWeight:600}}>Paciente</label>
+                                    <select name="patient" value={form.patient} onChange={(e)=> setForm({...form, patient: e.target.value})}>
+                                        <option value="">-- selecione paciente --</option>
+                                        {patients.map(p => <option key={p.id} value={p.id}>{p.first_name} {p.last_name}</option>)}
+                                    </select>
+                                </div>
+                            )}
+                        </div>
                         {viewMode === 'day' ? (
                             <div className="day-view">
                                 {( (()=>{
-                                    const avs = getAvailForDate(selectedDate);
-                                    const pavs = getPatientAvailForDate(selectedDate);
-                                    const evs = getSchedulesForDate(selectedDate);
-                                    if(avs.length===0 && pavs.length===0 && evs.length===0) return <div className="empty">Nenhum item neste dia.</div>;
+                                    const slots = buildHourlySlotsForDate(selectedDate);
+                                    if(slots.length === 0) return <div className="empty">Nenhum horário disponível neste dia.</div>;
                                     return (
                                         <div className="day-schedule-list">
-                                            {avs.map(a=> <div key={`iav-${a.id}`} className="day-availability-item availability-intern"><div className="event-time">{new Date(a.start_date).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} - {new Date(a.end_date).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div><div className="event-main">Estagiário disponível</div></div>)}
-                                            {pavs.map(a=> <div key={`pav-${a.id}`} className="day-availability-item availability-patient"><div className="event-time">{new Date(a.start_date).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} - {new Date(a.end_date).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div><div className="event-main">Paciente disponível</div></div>)}
-                                            {evs.map(ev=> <div key={`ev-${ev.id}`} className="day-schedule-item"><div className="event-time">{new Date(ev.start_time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} - {new Date(ev.end_time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div><div className="event-main">{ev.patient} — {ev.intern}</div></div>)}
+                                            {slots.map(slot => {
+                                            const occupied = slotIsOccupied(slot.internId, slot.start, slot.end);
+                                            // determine if slot matches selected patient's availability
+                                            const patientId = form.patient;
+                                            let isMatch = false;
+                                            if (patientId) {
+                                                const pats = getPatientAvailabilitiesForPatientAndDate(patientId, selectedDate);
+                                                isMatch = pats.some(pa => { const ps = new Date(pa.start_date); const pe = new Date(pa.end_date); return ps.getTime() < slot.end.getTime() && pe.getTime() > slot.start.getTime(); });
+                                            }
+
+                                            // show intern name always now
+                                            const showInternName = true;
+
+                                            if (occupied) {
+                                                const sched = getScheduleForSlot(slot.internId, slot.start, slot.end);
+                                                const patientName = sched ? (sched.patient_name || sched.patient || sched.patientId || sched.patient_id || '') : '';
+                                                return (
+                                                    <div key={`occ-${slot.internId}-${slot.start.toISOString()}`} className={"day-schedule-item calendar-schedule" + (isMatch ? ' slot-match' : '')}>
+                                                        <div className="event-time">{slot.start.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} - {slot.end.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
+                                                        <div className="event-main">{showInternName ? `${slot.internName}${patientName ? ' / ' + patientName : ' — Ocupado'}` : 'Ocupado'}</div>
+                                                    </div>
+                                                );
+                                            }
+
+                                            // free slot — show intern name always
+                                            return (
+                                                <div key={`slot-${slot.internId}-${slot.start.toISOString()}`} className={"day-availability-item availability-intern" + (isMatch ? ' slot-match' : '')} style={{cursor: bookingMode ? (form.patient ? 'pointer' : 'default') : 'default'}} onClick={()=> (bookingMode && form.patient) ? handleSlotClick(slot as any) : undefined}>
+                                                    <div className="event-time">{slot.start.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} - {slot.end.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
+                                                    <div className="event-main">{slot.internName}</div>
+                                                </div>
+                                            );
+                                        })}
                                         </div>
                                     );
                                 })() )}
@@ -133,28 +280,72 @@ export default function Schedules() {
                                         <div key={d.toISOString()} className="week-day">
                                             <div className="week-day-header">{d.toLocaleDateString(undefined,{ weekday: 'short', day:'numeric' })}</div>
                                             <div className="week-day-body">
-                                                {getAvailForDate(d).map(a => (
-                                                    <div key={`av-${a.id}`} className="calendar-availability availability-intern" style={{padding:'6px', borderRadius:6, marginBottom:6}}>
-                                                        <div className="event-time">{new Date(a.start_date).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} - {new Date(a.end_date).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
-                                                        <div className="event-main">Estagiário disponível</div>
-                                                    </div>
-                                                ))}
-                                                {getPatientAvailForDate(d).map(a => (
-                                                    <div key={`pav-${a.id}`} className="calendar-availability availability-patient" style={{padding:'6px', borderRadius:6, marginBottom:6}}>
-                                                        <div className="event-time">{new Date(a.start_date).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} - {new Date(a.end_date).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
-                                                        <div className="event-main">Paciente disponível</div>
-                                                    </div>
-                                                ))}
-                                                {getSchedulesForDate(d).map(ev => (
-                                                    <div key={ev.id} className="calendar-schedule" style={{padding:'6px', borderRadius:6, marginBottom:6}}>
-                                                        <div className="event-time">{new Date(ev.start_time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
-                                                        <div className="event-main">{ev.patient} — {ev.intern}</div>
-                                                    </div>
-                                                ))}
+                                                {(() => {
+                                                    const slots = buildHourlySlotsForDate(d);
+                                                    if (slots.length === 0) return <div className="empty">Nenhum horário disponível neste dia.</div>;
+                                                    return slots.map(slot => {
+                                                        const occupied = slotIsOccupied(slot.internId, slot.start, slot.end);
+                                                        // determine if slot matches selected patient's availability
+                                                        const patientId = form.patient;
+                                                        let isMatch = false;
+                                                        if (patientId) {
+                                                            const pats = getPatientAvailabilitiesForPatientAndDate(patientId, d);
+                                                            isMatch = pats.some(pa => { const ps = new Date(pa.start_date); const pe = new Date(pa.end_date); return ps.getTime() < slot.end.getTime() && pe.getTime() > slot.start.getTime(); });
+                                                        }
+                                                        const showInternName = bookingMode; // only reveal names in booking mode
+
+                                                        if (occupied) {
+                                                            const sched = getScheduleForSlot(slot.internId, slot.start, slot.end);
+                                                            const patientName = sched ? (sched.patient_name || sched.patient || sched.patientId || sched.patient_id || '') : '';
+                                                            return (
+                                                                <div key={`occ-${slot.internId}-${slot.start.toISOString()}`} className={"calendar-schedule" + (isMatch ? ' slot-match' : '')} style={{padding:6, borderRadius:6, marginBottom:6}}>
+                                                                    <div className="event-time">{slot.start.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} - {slot.end.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
+                                                                    <div className="event-main">{showInternName ? `${slot.internName}${patientName ? ' / ' + patientName : ' — Ocupado'}` : 'Ocupado'}</div>
+                                                                </div>
+                                                            );
+                                                        }
+
+                                                        // free slot
+                                                        return (
+                                                            <div key={`slot-${slot.internId}-${slot.start.toISOString()}`} className={("calendar-availability availability-intern") + (isMatch ? ' slot-match' : '')} style={{padding:6, borderRadius:6, marginBottom:6, cursor: (bookingMode && form.patient) ? 'pointer' : 'default'}} onClick={()=> (bookingMode && form.patient) ? handleSlotClick(slot as any) : undefined}>
+                                                                <div className="event-time">{slot.start.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} - {slot.end.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
+                                                                <div className="event-main">{slot.internName}</div>
+                                                            </div>
+                                                        );
+                                                    });
+                                                })()}
                                             </div>
                                         </div>
                                     ));
                                 })()}
+                            </div>
+                        )}
+
+                        {showSchedulePanel && (
+                            <div className="fullscreen-panel">
+                                <div className="panel-inner">
+                                    <button className="panel-close" onClick={()=>setShowSchedulePanel(false)}>Fechar ×</button>
+                                    <h2>Criar agendamento</h2>
+                                    <form onSubmit={handleCreateSchedule} className="panel-form">
+                                        <label>Paciente</label>
+                                        <select name="patient" value={form.patient} onChange={handleFormChange} required>
+                                            <option value="">Selecione</option>
+                                            {patients.map(p => <option key={p.id} value={p.id}>{p.first_name} {p.last_name}</option>)}
+                                        </select>
+                                        <label>Estagiário</label>
+                                        <select name="intern" value={form.intern} onChange={handleFormChange} required>
+                                            <option value="">Selecione</option>
+                                            {interns.map(i => <option key={i.id} value={i.id}>{i.first_name} {i.last_name}</option>)}
+                                        </select>
+                                        <label>Room id</label>
+                                        <input name="room_id" value={form.room_id} onChange={handleFormChange} placeholder="Room id" />
+                                        <label>Start</label>
+                                        <input name="start_time" type="datetime-local" value={form.start_time} onChange={handleFormChange} required />
+                                        <label>End</label>
+                                        <input name="end_time" type="datetime-local" value={form.end_time} onChange={handleFormChange} required />
+                                        <button type="submit" className="btn">Criar</button>
+                                    </form>
+                                </div>
                             </div>
                         )}
                     </div>
