@@ -123,6 +123,26 @@ export default function Schedules() {
         });
         return slots;
     };
+
+    // build 1-hour slots for patient availabilities (same rounding logic as intern slots)
+    const buildHourlyPatientSlotsForDate = (d: Date) => {
+        const pats = getPatientAvailForDate(d);
+        const slots: Array<{patientId:any, patientName:string, start: Date, end: Date, parentId:any}> = [];
+        pats.forEach(pa => {
+            const s = new Date(pa.start_date);
+            const e = new Date(pa.end_date);
+            let cur = new Date(s);
+            if (cur.getMinutes() !== 0 || cur.getSeconds() !== 0) { cur.setMinutes(0,0,0); cur.setHours(cur.getHours()+1); }
+            while (cur.getTime() + 3600*1000 <= e.getTime()) {
+                const slotEnd = new Date(cur.getTime() + 3600*1000);
+                const patientId = pa.patient ?? pa.patient_id ?? pa.patientId ?? null;
+                const pt = patients.find(p => p.id === patientId) || patients.find(p => String(p.id) === String(patientId));
+                slots.push({ patientId, patientName: pt ? `${pt.first_name} ${pt.last_name}` : findPersonName(patients, patientId), start: new Date(cur), end: slotEnd, parentId: pa.id });
+                cur = slotEnd;
+            }
+        });
+        return slots;
+    };
     
     const findPersonName = (list: any[], value: any, roleLabel = '') => {
         if (value == null) return '';
@@ -257,6 +277,7 @@ export default function Schedules() {
                             )}
                         </div>
                         {viewMode === 'day' ? (
+                            <>
                             <div className="day-view">
                                 {( (()=>{
                                     const slots = buildHourlySlotsForDate(selectedDate);
@@ -278,7 +299,8 @@ export default function Schedules() {
 
                                             if (occupied) {
                                                 const sched = getScheduleForSlot(slot.internId, slot.start, slot.end);
-                                                const patientName = sched ? (sched.patient_name || sched.patient || sched.patientId || sched.patient_id || '') : '';
+                                                // prefer serializer-provided name fields, otherwise resolve via patients list
+                                                const patientName = sched ? (sched.patient_name || sched.patient_name || findPersonName(patients, sched.patient ?? sched.patient_id ?? sched.patientId ?? sched.patient)) : '';
                                                 return (
                                                     <div key={`occ-${slot.internId}-${slot.start.toISOString()}`} className={"day-schedule-item calendar-schedule" + (isMatch ? ' slot-match' : '')}>
                                                         <div className="event-time">{slot.start.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} - {slot.end.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
@@ -287,11 +309,11 @@ export default function Schedules() {
                                                 );
                                             }
 
-                                            // free slot — show intern name always
+                                            // free slot — show intern name always; if it matches selected patient's availability, show patient too
                                             return (
                                                 <div key={`slot-${slot.internId}-${slot.start.toISOString()}`} className={"day-availability-item availability-intern" + (isMatch ? ' slot-match' : '')} style={{cursor: bookingMode ? (form.patient ? 'pointer' : 'default') : 'default'}} onClick={()=> (bookingMode && form.patient) ? handleSlotClick(slot as any) : undefined}>
                                                     <div className="event-time">{slot.start.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} - {slot.end.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
-                                                    <div className="event-main">{slot.internName}</div>
+                                                    <div className="event-main">{slot.internName}{isMatch ? ' / ' + findPersonName(patients, form.patient) : ''}</div>
                                                 </div>
                                             );
                                         })}
@@ -299,6 +321,25 @@ export default function Schedules() {
                                     );
                                 })() )}
                             </div>
+                            {/* show patient availabilities for the day */}
+                            {(() => {
+                                const pSlots = buildHourlyPatientSlotsForDate(selectedDate);
+                                if (!pSlots || pSlots.length === 0) return null;
+                                return (
+                                    <div style={{marginTop:12}}>
+                                        <h4 style={{margin:0, marginBottom:6}}>Disponibilidades dos pacientes (1h)</h4>
+                                        <div className="day-schedule-list">
+                                            {pSlots.map(ps => (
+                                                <div key={`pav-${ps.parentId}-${ps.start.toISOString()}`} className={`day-availability-item availability-patient${bookingMode && form.patient && String(ps.patientId) === String(form.patient) ? ' slot-match' : ''}`}>
+                                                    <div className="event-time">{ps.start.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} - {ps.end.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
+                                                    <div className="event-main">{ps.patientName}</div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                );
+                            })()}
+                            </>
                         ) : (
                             <div className="week-grid">
                                 {(() => {
@@ -325,7 +366,7 @@ export default function Schedules() {
 
                                                         if (occupied) {
                                                             const sched = getScheduleForSlot(slot.internId, slot.start, slot.end);
-                                                            const patientName = sched ? (sched.patient_name || sched.patient || sched.patientId || sched.patient_id || '') : '';
+                                                            const patientName = sched ? (sched.patient_name || findPersonName(patients, sched.patient ?? sched.patient_id ?? sched.patientId ?? sched.patient)) : '';
                                                             return (
                                                                 <div key={`occ-${slot.internId}-${slot.start.toISOString()}`} className={"calendar-schedule" + (isMatch ? ' slot-match' : '')} style={{padding:6, borderRadius:6, marginBottom:6}}>
                                                                     <div className="event-time">{slot.start.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} - {slot.end.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
@@ -334,14 +375,25 @@ export default function Schedules() {
                                                             );
                                                         }
 
-                                                        // free slot
+                                                        // free slot — if matches selected patient's availability, show patient name
                                                         return (
                                                             <div key={`slot-${slot.internId}-${slot.start.toISOString()}`} className={("calendar-availability availability-intern") + (isMatch ? ' slot-match' : '')} style={{padding:6, borderRadius:6, marginBottom:6, cursor: (bookingMode && form.patient) ? 'pointer' : 'default'}} onClick={()=> (bookingMode && form.patient) ? handleSlotClick(slot as any) : undefined}>
                                                                 <div className="event-time">{slot.start.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} - {slot.end.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
-                                                                <div className="event-main">{slot.internName}</div>
+                                                                <div className="event-main">{slot.internName}{isMatch ? ' / ' + findPersonName(patients, form.patient) : ''}</div>
                                                             </div>
                                                         );
                                                     });
+                                                })()}
+                                                {/* show patient availabilities for this week-day (hourly) */}
+                                                {(() => {
+                                                    const pSlots = buildHourlyPatientSlotsForDate(d);
+                                                    if (!pSlots || pSlots.length === 0) return null;
+                                                    return pSlots.map(ps => (
+                                                        <div key={`pavw-${ps.parentId}-${ps.start.toISOString()}`} className={`day-availability-item availability-patient${bookingMode && form.patient && String(ps.patientId) === String(form.patient) ? ' slot-match' : ''}`} style={{marginTop:6}}>
+                                                            <div className="event-time">{ps.start.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} - {ps.end.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
+                                                            <div className="event-main">{ps.patientName}</div>
+                                                        </div>
+                                                    ));
                                                 })()}
                                             </div>
                                         </div>
