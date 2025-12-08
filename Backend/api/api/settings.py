@@ -92,6 +92,18 @@ CORS_ALLOWED_ORIGINS = [
     'http://127.0.0.1:5173',
 ]
 
+# Allow additional origins from environment variable (comma-separated). Example:
+# CORS_ALLOWED_ORIGINS=https://your-frontend.vercel.app,https://staging.example.com
+_env_cors = os.environ.get('CORS_ALLOWED_ORIGINS')
+if _env_cors:
+    for o in [s.strip() for s in _env_cors.split(',') if s.strip()]:
+        if o not in CORS_ALLOWED_ORIGINS:
+            CORS_ALLOWED_ORIGINS.append(o)
+
+# For quick testing you can allow all origins by setting CORS_ALLOW_ALL=1 in the environment.
+if os.environ.get('CORS_ALLOW_ALL') in ('1', 'true', 'True'):
+    CORS_ALLOW_ALL_ORIGINS = True
+
 
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
