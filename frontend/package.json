@@ -16,7 +16,6 @@
     "react-select": "^5.0.0"
   },
   "optionalDependencies": {
-    "react-debounce-input": "^3.2.7",
     "react-icons": "^4.11.0"
   },
   "devDependencies": {

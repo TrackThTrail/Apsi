@@ -1,7 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import Select from 'react-select';
-import { DebounceInput } from 'react-debounce-input';
-import { FaSearch } from 'react-icons/fa';
 import './Schedules.css';
 
 export default function Schedules() {
@@ -101,6 +99,14 @@ export default function Schedules() {
     };
 
     useEffect(() => { fetchSchedules(); fetchAvailabilities(); fetchPatientAvailabilities(); fetchInterns(); fetchPatients(); }, []);
+
+    // debounce search queries to avoid firing on every keystroke
+    useEffect(() => {
+        const id = setTimeout(() => {
+            fetchSchedules({ q, start, end, filterBy });
+        }, 300);
+        return () => clearTimeout(id);
+    }, [q, start, end, filterBy]);
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
@@ -285,16 +291,10 @@ export default function Schedules() {
                     <form onSubmit={handleSearch} className="schedules-search-form">
                         <div className="search-left" style={{display:'flex', gap:8, alignItems:'center'}}>
                             <div className="search-input-container">
-                                <FaSearch className="search-icon" />
-                                <DebounceInput
-                                    minLength={1}
-                                    debounceTimeout={300}
-                                    element="input"
-                                    value={q}
-                                    onChange={(e: any) => { const v = e.target.value; setQ(v); fetchSchedules({ q: v, start, end, filterBy }); }}
-                                    placeholder="Pesquisar por paciente/estagiário/room"
-                                    className="search-input"
-                                />
+                                <svg className="search-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
+                                    <path fill="currentColor" d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zM10 14a4 4 0 110-8 4 4 0 010 8z"/>
+                                </svg>
+                                <input className="search-input" value={q} onChange={e => setQ(e.target.value)} placeholder="Pesquisar por paciente/estagiário/room" />
                             </div>
                             <div style={{minWidth:140}}>
                                 <Select
