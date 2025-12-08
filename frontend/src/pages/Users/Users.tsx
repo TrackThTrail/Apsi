@@ -3,6 +3,7 @@ import './Users.css';
 import { Link } from 'react-router-dom';
 
 export default function Users() {
+    const API_BASE = (import.meta && import.meta.env && (import.meta.env.VITE_API_URL as string)) || 'http://localhost:8000';
     const [users, setUsers] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
     const [form, setForm] = useState({ first_name: '', last_name: '', email: '' });
@@ -11,7 +12,7 @@ export default function Users() {
         setLoading(true);
         try {
             const token = localStorage.getItem('access_token');
-            const resp = await fetch('http://localhost:8000/api/estagiarios/', {
+            const resp = await fetch(`${API_BASE}/api/estagiarios/`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             if (resp.ok) {
@@ -34,7 +35,7 @@ export default function Users() {
         e.preventDefault();
         try {
             const token = localStorage.getItem('access_token');
-            const resp = await fetch('http://localhost:8000/api/estagiarios/', {
+            const resp = await fetch(`${API_BASE}/api/estagiarios/`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
                 body: JSON.stringify({
@@ -82,7 +83,7 @@ export default function Users() {
                                                     if (!confirm(`Inativar estagiário ${u.first_name} ${u.last_name || ''}? Isso removerá disponibilidades e agendamentos futuros.`)) return;
                                                     try{
                                                         const token = localStorage.getItem('access_token');
-                                                        const resp = await fetch(`http://localhost:8000/api/estagiarios/${u.id}/`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+                                                        const resp = await fetch(`${API_BASE}/api/estagiarios/${u.id}/`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
                                                         if (resp.ok || resp.status === 204) fetchUsers();
                                                         else console.error('failed to inactivate', await resp.text());
                                                     }catch(e){ console.error(e); }

@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import './PatientDetail.css';
 
 export default function PatientDetail(){
+    const API_BASE = (import.meta && import.meta.env && (import.meta.env.VITE_API_URL as string)) || 'http://localhost:8000';
     const { id } = useParams();
     const [patient, setPatient] = useState<any>(null);
     const [schedules, setSchedules] = useState<any[]>([]);
@@ -22,7 +23,7 @@ export default function PatientDetail(){
     const fetchPatient = async () => {
         try{
             const token = localStorage.getItem('access_token');
-            const resp = await fetch(`http://localhost:8000/api/patients/${id}/`, { headers: { Authorization: `Bearer ${token}` } });
+            const resp = await fetch(`${API_BASE}/api/patients/${id}/`, { headers: { Authorization: `Bearer ${token}` } });
             if(resp.ok) setPatient(await resp.json());
         }catch(err){ console.error(err); }
     };
@@ -30,7 +31,7 @@ export default function PatientDetail(){
     const fetchSchedules = async () => {
         try{
             const token = localStorage.getItem('access_token');
-            const resp = await fetch(`http://localhost:8000/api/schedules/?patient=${id}`, { headers: { Authorization: `Bearer ${token}` } });
+            const resp = await fetch(`${API_BASE}/api/schedules/?patient=${id}`, { headers: { Authorization: `Bearer ${token}` } });
             if(resp.ok) setSchedules(await resp.json());
         }catch(err){ console.error(err); }
     };
@@ -38,7 +39,7 @@ export default function PatientDetail(){
     const fetchAllSchedules = async () => {
         try{
             const token = localStorage.getItem('access_token');
-            const resp = await fetch(`http://localhost:8000/api/schedules/`, { headers: { Authorization: `Bearer ${token}` } });
+            const resp = await fetch(`${API_BASE}/api/schedules/`, { headers: { Authorization: `Bearer ${token}` } });
             if(resp.ok) setAllSchedules(await resp.json());
         }catch(err){ console.error(err); }
     };
@@ -46,7 +47,7 @@ export default function PatientDetail(){
     const fetchPatientAvailabilities = async () => {
         try{
             const token = localStorage.getItem('access_token');
-            const resp = await fetch(`http://localhost:8000/api/patientavailabilities/?patient=${id}`, { headers: { Authorization: `Bearer ${token}` } });
+            const resp = await fetch(`${API_BASE}/api/patientavailabilities/?patient=${id}`, { headers: { Authorization: `Bearer ${token}` } });
             if(resp.ok) setPatientAvailabilities(await resp.json());
         }catch(err){ console.error(err); }
     };
@@ -54,7 +55,7 @@ export default function PatientDetail(){
     const fetchInterns = async () => {
         try{
             const token = localStorage.getItem('access_token');
-            const resp = await fetch('http://localhost:8000/api/estagiarios/', { headers: { Authorization: `Bearer ${token}` } });
+            const resp = await fetch(`${API_BASE}/api/estagiarios/`, { headers: { Authorization: `Bearer ${token}` } });
             if(resp.ok) setInterns(await resp.json());
         }catch(err){ console.error(err); }
     };
@@ -62,7 +63,7 @@ export default function PatientDetail(){
     const fetchInternAvailabilities = async () => {
         try{
             const token = localStorage.getItem('access_token');
-            const resp = await fetch('http://localhost:8000/api/availabilities/', { headers: { Authorization: `Bearer ${token}` } });
+            const resp = await fetch(`${API_BASE}/api/availabilities/`, { headers: { Authorization: `Bearer ${token}` } });
             if(resp.ok) setInternAvailabilities(await resp.json());
         }catch(err){ console.error(err); }
     };
@@ -78,7 +79,7 @@ export default function PatientDetail(){
             const token = localStorage.getItem('access_token');
             const startIso = new Date(form.start_time).toISOString();
             const endIso = new Date(form.end_time).toISOString();
-            const resp = await fetch('http://localhost:8000/api/schedules/', {
+            const resp = await fetch(`${API_BASE}/api/schedules/`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
                 body: JSON.stringify({ intern: form.intern, patient: id, room_id: form.room_id || null, start_time: startIso, end_time: endIso })
@@ -96,7 +97,7 @@ export default function PatientDetail(){
             // build ISO datetimes from selected day + time inputs
             const startIso = new Date(`${form.av_date}T${form.av_start_time}`).toISOString();
             const endIso = new Date(`${form.av_date}T${form.av_end_time}`).toISOString();
-            const resp = await fetch('http://localhost:8000/api/patientavailabilities/', {
+            const resp = await fetch(`${API_BASE}/api/patientavailabilities/`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
                 body: JSON.stringify({ patient: id, start_date: startIso, end_date: endIso })
@@ -111,7 +112,7 @@ export default function PatientDetail(){
     const handleDeletePatientAvailability = async (idToDelete: number) => {
         try{
             const token = localStorage.getItem('access_token');
-            const resp = await fetch(`http://localhost:8000/api/patientavailabilities/${idToDelete}/`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+            const resp = await fetch(`${API_BASE}/api/patientavailabilities/${idToDelete}/`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
             if(resp.ok) fetchPatientAvailabilities(); else console.error(await resp.text());
         }catch(err){ console.error(err); }
     };

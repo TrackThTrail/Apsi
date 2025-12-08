@@ -3,6 +3,8 @@ import Select from 'react-select';
 import './Schedules.css';
 
 export default function Schedules() {
+    // Base API URL: set VITE_API_URL in your frontend host (Vercel/Render) to point to the backend
+    const API_BASE = (import.meta && import.meta.env && (import.meta.env.VITE_API_URL as string)) || 'http://localhost:8000';
     const [schedules, setSchedules] = useState<any[]>([]);
     const [availabilities, setAvailabilities] = useState<any[]>([]); // intern availabilities
     const [interns, setInterns] = useState<any[]>([]);
@@ -57,7 +59,7 @@ export default function Schedules() {
             if (params?.start) parts.push(`start=${encodeURIComponent(params.start)}`);
             if (params?.end) parts.push(`end=${encodeURIComponent(params.end)}`);
             if (params?.filterBy && params.filterBy !== 'any') parts.push(`filter_by=${encodeURIComponent(params.filterBy)}`);
-            const url = `http://localhost:8000/api/schedules/${parts.length ? '?' + parts.join('&') : ''}`;
+            const url = `${API_BASE}/api/schedules/${parts.length ? '?' + parts.join('&') : ''}`;
             const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
             if (resp.ok) setSchedules(await resp.json());
             else console.error(await resp.text());
@@ -69,7 +71,7 @@ export default function Schedules() {
     const fetchAvailabilities = async () => {
         try{
             const token = localStorage.getItem('access_token');
-            const resp = await fetch('http://localhost:8000/api/availabilities/', { headers: { Authorization: `Bearer ${token}` } });
+            const resp = await fetch(`${API_BASE}/api/availabilities/`, { headers: { Authorization: `Bearer ${token}` } });
             if(resp.ok) setAvailabilities(await resp.json());
         }catch(e){ console.error(e); }
     };
@@ -77,7 +79,7 @@ export default function Schedules() {
     const fetchInterns = async () => {
         try{
             const token = localStorage.getItem('access_token');
-            const resp = await fetch('http://localhost:8000/api/estagiarios/', { headers: { Authorization: `Bearer ${token}` } });
+            const resp = await fetch(`${API_BASE}/api/estagiarios/`, { headers: { Authorization: `Bearer ${token}` } });
             if(resp.ok) setInterns(await resp.json());
         }catch(e){ console.error(e); }
     };
@@ -85,7 +87,7 @@ export default function Schedules() {
     const fetchPatients = async () => {
         try{
             const token = localStorage.getItem('access_token');
-            const resp = await fetch('http://localhost:8000/api/patients/', { headers: { Authorization: `Bearer ${token}` } });
+            const resp = await fetch(`${API_BASE}/api/patients/`, { headers: { Authorization: `Bearer ${token}` } });
             if(resp.ok) setPatients(await resp.json());
         }catch(e){ console.error(e); }
     };
@@ -93,7 +95,7 @@ export default function Schedules() {
     const fetchPatientAvailabilities = async () => {
         try{
             const token = localStorage.getItem('access_token');
-            const resp = await fetch('http://localhost:8000/api/patientavailabilities/', { headers: { Authorization: `Bearer ${token}` } });
+            const resp = await fetch(`${API_BASE}/api/patientavailabilities/`, { headers: { Authorization: `Bearer ${token}` } });
             if(resp.ok) setPatientAvailabilities(await resp.json());
         }catch(e){ console.error(e); }
     };
@@ -119,11 +121,9 @@ export default function Schedules() {
     const nextWeek = () => { const d = new Date(selectedDate); d.setDate(d.getDate() + 7); setSelectedDate(d); };
 
     const schedulesByDate = schedules.reduce((acc: Record<string, any[]>, s) => { try{ const d = new Date(s.start_time).toISOString().slice(0,10); if (!acc[d]) acc[d] = []; acc[d].push(s); }catch(e){} return acc; }, {} as Record<string, any[]>);
-    const availByDate = availabilities.reduce((acc: Record<string, any[]>, a) => { try{ const d = new Date(a.start_date).toISOString().slice(0,10); if (!acc[d]) acc[d] = []; acc[d].push(a); }catch(e){} return acc; }, {} as Record<string, any[]>);
     const patientAvailByDate = patientAvailabilities.reduce((acc: Record<string, any[]>, a) => { try{ const d = new Date(a.start_date).toISOString().slice(0,10); if (!acc[d]) acc[d] = []; acc[d].push(a); }catch(e){} return acc; }, {} as Record<string, any[]>);
 
     const getSchedulesForDate = (d: Date) => { const key = d.toISOString().slice(0,10); return (schedulesByDate[key] || []).slice().sort((a,b)=> new Date(a.start_time).getTime() - new Date(b.start_time).getTime()); };
-    const getAvailForDate = (d: Date) => { const key = d.toISOString().slice(0,10); return (availByDate[key] || []).slice().sort((a,b)=> new Date(a.start_date).getTime() - new Date(b.start_date).getTime()); };
     const getPatientAvailForDate = (d: Date) => { const key = d.toISOString().slice(0,10); return (patientAvailByDate[key] || []).slice().sort((a,b)=> new Date(a.start_date).getTime() - new Date(b.start_date).getTime()); };
 
     const pad = (n: number) => n.toString().padStart(2,'0');
@@ -136,12 +136,8 @@ export default function Schedules() {
         }).sort((a,b)=> new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
     };
 
-    const getPatientAvailabilitiesForPatientAndDate = (patientId: any, d: Date) => {
-        const key = d.toISOString().slice(0,10);
-        return patientAvailabilities.filter(a => {
-            try{ return (String(a.patient) === String(patientId) || String(a.patient_id) === String(patientId)) && new Date(a.start_date).toISOString().slice(0,10) === key; }catch(e){ return false; }
-        }).sort((a,b)=> new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
-    };
+    // helper to get patient availabilities grouped by date is available via `getPatientAvailForDate` and
+    // further filtering by patient id can be done inline where needed.
 
     const buildHourlySlotsForDate = (d: Date) => {
         const avail = getInternAvailabilitiesForDate(d);
@@ -182,7 +178,7 @@ export default function Schedules() {
         return slots;
     };
     
-    const findPersonName = (list: any[], value: any, roleLabel = '') => {
+    const findPersonName = (list: any[], value: any) => {
         if (value == null) return '';
         // value might be an id number/string or an object
         const id = (typeof value === 'object' && value !== null) ? (value.id ?? value.patient_id ?? value.intern_id ?? null) : value;
@@ -230,17 +226,7 @@ export default function Schedules() {
         });
     };
 
-    const getScheduleForSlot = (internId: any, start: Date, end: Date) => {
-        return schedules.find(s => {
-            try{
-                const sid = s.intern ?? s.intern_id ?? s.internId ?? null;
-                if (String(sid) !== String(internId)) return false;
-                const ss = new Date(s.start_time);
-                const se = new Date(s.end_time);
-                return ss.getTime() < end.getTime() && se.getTime() > start.getTime();
-            }catch(e){ return false; }
-        }) || null;
-    };
+    // getScheduleForSlot removed (unused). Use `schedules` array directly or `slotIsOccupied` where needed.
 
     const handleSlotClick = (slot: {internId:any, start:Date, end:Date}) => {
         if (slotIsOccupied(slot.internId, slot.start, slot.end)) return; // ignore occupied
@@ -255,7 +241,7 @@ export default function Schedules() {
         e.preventDefault();
         try{
             const token = localStorage.getItem('access_token');
-            const resp = await fetch('http://localhost:8000/api/schedules/', {
+            const resp = await fetch(`${API_BASE}/api/schedules/`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
                 body: JSON.stringify({ intern: form.intern, patient: form.patient, room_id: form.room_id || null, start_time: new Date(form.start_time).toISOString(), end_time: new Date(form.end_time).toISOString() })
@@ -269,7 +255,7 @@ export default function Schedules() {
         if (!confirm('Excluir agendamento? Essa ação não pode ser desfeita.')) return;
         try{
             const token = localStorage.getItem('access_token');
-            const resp = await fetch(`http://localhost:8000/api/schedules/${id}/`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+            const resp = await fetch(`${API_BASE}/api/schedules/${id}/`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
             if (resp.ok || resp.status === 204) {
                 // refresh data
                 fetchSchedules();

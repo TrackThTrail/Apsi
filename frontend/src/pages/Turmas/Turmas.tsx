@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import './Turmas.css';
 
 export default function Turmas() {
+    const API_BASE = (import.meta && import.meta.env && (import.meta.env.VITE_API_URL as string)) || 'http://localhost:8000';
     const [turmas, setTurmas] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
     const [form, setForm] = useState({ name: '', description: '', start_date: '', end_date: '' });
@@ -10,7 +11,7 @@ export default function Turmas() {
         setLoading(true);
         try {
             const token = localStorage.getItem('access_token');
-            const resp = await fetch('http://localhost:8000/api/turmas/', {
+            const resp = await fetch(`${API_BASE}/api/turmas/`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             if (resp.ok) {
@@ -33,7 +34,7 @@ export default function Turmas() {
         e.preventDefault();
         try {
             const token = localStorage.getItem('access_token');
-            const resp = await fetch('http://localhost:8000/api/turmas/', {
+            const resp = await fetch(`${API_BASE}/api/turmas/`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
                 body: JSON.stringify({
@@ -57,7 +58,7 @@ export default function Turmas() {
     const handleDelete = async (id: number) => {
         try {
             const token = localStorage.getItem('access_token');
-            const resp = await fetch(`http://localhost:8000/api/turmas/${id}/`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+            const resp = await fetch(`${API_BASE}/api/turmas/${id}/`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
             if (resp.ok) fetchTurmas(); else console.error(await resp.text());
         } catch (err) { console.error(err); }
     };

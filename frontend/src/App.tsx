@@ -12,17 +12,19 @@ import UserDetail from "./pages/UserDetail/UserDetail";
 
 function App() {
     useEffect(()=>{
+        // API base (use VITE_API_URL in hosting environment)
+        const API_BASE = (import.meta && import.meta.env && (import.meta.env.VITE_API_URL as string)) || 'http://localhost:8000';
         // wrap global fetch to transparently refresh tokens on 401 and retry
         const originalFetch = window.fetch.bind(window);
         let refreshing = false;
         let refreshPromise: Promise<string | null> | null = null;
 
-        const doRefresh = async (): Promise<string | null> => {
+                const doRefresh = async (): Promise<string | null> => {
             const refresh = localStorage.getItem('refresh_token');
             if (!refresh) return null;
             try {
                 // call backend refresh endpoint (explicit host)
-                const resp = await originalFetch('http://localhost:8000/api/token/refresh/', {
+                const resp = await originalFetch(`${API_BASE}/api/token/refresh/`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ refresh })

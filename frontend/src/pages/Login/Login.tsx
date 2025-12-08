@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import "./Login.css";
 
 export default function Login() {
+    const API_BASE = (import.meta && import.meta.env && (import.meta.env.VITE_API_URL as string)) || 'http://localhost:8000';
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const navigate = useNavigate();
@@ -12,7 +13,7 @@ export default function Login() {
         // call backend JWT token endpoint
         (async () => {
             try {
-                const resp = await fetch('http://localhost:8000/api/token/', {
+                const resp = await fetch(`${API_BASE}/api/token/`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email, password }),

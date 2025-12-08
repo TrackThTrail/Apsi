@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import './Patients.css';
 
 export default function Patients() {
+    const API_BASE = (import.meta && import.meta.env && (import.meta.env.VITE_API_URL as string)) || 'http://localhost:8000';
     const [patients, setPatients] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
     const [form, setForm] = useState({ first_name: '', last_name: '', email: '', phone: '' });
@@ -12,7 +13,7 @@ export default function Patients() {
         setLoading(true);
         try {
             const token = localStorage.getItem('access_token');
-            const resp = await fetch('http://localhost:8000/api/patients/', {
+            const resp = await fetch(`${API_BASE}/api/patients/`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             if (resp.ok) setPatients(await resp.json());
@@ -29,7 +30,7 @@ export default function Patients() {
         e.preventDefault();
         try {
             const token = localStorage.getItem('access_token');
-            const resp = await fetch('http://localhost:8000/api/patients/', {
+            const resp = await fetch(`${API_BASE}/api/patients/`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
                 body: JSON.stringify(form),
@@ -68,7 +69,7 @@ export default function Patients() {
                                                     if (!confirm(`Inativar paciente ${p.first_name} ${p.last_name || ''}? Isso removerá disponibilidades e agendamentos futuros.`)) return;
                                                     try{
                                                         const token = localStorage.getItem('access_token');
-                                                        const resp = await fetch(`http://localhost:8000/api/patients/${p.id}/`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+                                                        const resp = await fetch(`${API_BASE}/api/patients/${p.id}/`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
                                                         if (resp.ok || resp.status === 204) fetchPatients();
                                                         else console.error('failed to inactivate', await resp.text());
                                                     }catch(e){ console.error(e); }

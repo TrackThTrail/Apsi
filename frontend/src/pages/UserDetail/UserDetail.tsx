@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import '../PatientDetail/PatientDetail.css';
 
 export default function UserDetail(){
+    const API_BASE = (import.meta && import.meta.env && (import.meta.env.VITE_API_URL as string)) || 'http://localhost:8000';
     const { id } = useParams();
     const [intern, setIntern] = useState<any>(null);
     const [schedules, setSchedules] = useState<any[]>([]);
@@ -15,7 +16,7 @@ export default function UserDetail(){
     const fetchIntern = async () => {
         try{
             const token = localStorage.getItem('access_token');
-            const resp = await fetch(`http://localhost:8000/api/estagiarios/${id}/`, { headers: { Authorization: `Bearer ${token}` } });
+            const resp = await fetch(`${API_BASE}/api/estagiarios/${id}/`, { headers: { Authorization: `Bearer ${token}` } });
             if(resp.ok) setIntern(await resp.json());
         }catch(e){ console.error(e); }
     };
@@ -23,7 +24,7 @@ export default function UserDetail(){
     const fetchSchedules = async () => {
         try{
             const token = localStorage.getItem('access_token');
-            const resp = await fetch(`http://localhost:8000/api/schedules/?intern=${id}`, { headers: { Authorization: `Bearer ${token}` } });
+            const resp = await fetch(`${API_BASE}/api/schedules/?intern=${id}`, { headers: { Authorization: `Bearer ${token}` } });
             if(resp.ok) setSchedules(await resp.json());
         }catch(e){ console.error(e); }
     };
@@ -31,7 +32,7 @@ export default function UserDetail(){
     const fetchAvailabilities = async () => {
         try{
             const token = localStorage.getItem('access_token');
-            const resp = await fetch(`http://localhost:8000/api/availabilities/?intern=${id}`, { headers: { Authorization: `Bearer ${token}` } });
+            const resp = await fetch(`${API_BASE}/api/availabilities/?intern=${id}`, { headers: { Authorization: `Bearer ${token}` } });
             if(resp.ok) setAvailabilities(await resp.json());
         }catch(e){ console.error(e); }
     };
@@ -47,7 +48,7 @@ export default function UserDetail(){
             // build ISO datetimes from selected day + time
             const startIso = new Date(`${form.av_date}T${form.av_start_time}`).toISOString();
             const endIso = new Date(`${form.av_date}T${form.av_end_time}`).toISOString();
-            const resp = await fetch('http://localhost:8000/api/availabilities/', {
+            const resp = await fetch(`${API_BASE}/api/availabilities/`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
                 body: JSON.stringify({ intern: id, start_date: startIso, end_date: endIso })
