@@ -297,6 +297,48 @@ export default function Schedules() {
                             <>
                             <div className="day-view">
                                 {(() => {
+                                    // If not in booking mode, show existing schedules only
+                                    if (!bookingMode) {
+                                        const scheds = getSchedulesForDate(selectedDate);
+                                        if (!scheds || scheds.length === 0) return <div className="empty">Nenhum agendamento neste dia.</div>;
+                                        // group schedules by hour
+                                        const keyFor = (dt: Date) => {
+                                            const y = dt.getFullYear();
+                                            const m = String(dt.getMonth()+1).padStart(2,'0');
+                                            const day = String(dt.getDate()).padStart(2,'0');
+                                            const hh = String(dt.getHours()).padStart(2,'0');
+                                            const mm = String(dt.getMinutes()).padStart(2,'0');
+                                            return `${y}-${m}-${day}T${hh}:${mm}`;
+                                        };
+                                        const map = new Map<string, any[]>();
+                                        scheds.forEach(s => {
+                                            try{
+                                                const k = keyFor(new Date(s.start_time));
+                                                if (!map.has(k)) map.set(k, []);
+                                                map.get(k)!.push(s);
+                                            }catch(e){}
+                                        });
+                                        const entries = Array.from(map.entries()).sort((a,b)=> new Date(a[0]).getTime() - new Date(b[0]).getTime());
+                                        return (
+                                            <div className="day-schedule-list">
+                                                {entries.map(([k, list]) => {
+                                                            return (
+                                                                <div key={`srow-${k}`} className="time-row">
+                                                                    <div style={{display:'flex', gap:8, flexWrap:'wrap'}}>
+                                                                        {list.map((s: any) => (
+                                                                            <div key={`s-${s.id}`} className="day-availability-item calendar-schedule" title={`${findPersonName(patients, s.patient)} — ${findPersonName(interns, s.intern)}`}>
+                                                                                <div className="event-time">{new Date(s.start_time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} - {new Date(s.end_time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
+                                                                                <div className="event-main">{findPersonShortName(patients, s.patient)} — {findPersonShortName(interns, s.intern)}</div>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })}
+                                            </div>
+                                        );
+                                    }
+                                    // bookingMode: show availabilities (existing behavior)
                                     const internSlots = buildHourlySlotsForDate(selectedDate);
                                     const patientSlots = buildHourlyPatientSlotsForDate(selectedDate);
                                     // group by local hour:minute key to avoid timezone/ms mismatch
@@ -351,8 +393,8 @@ export default function Schedules() {
                                     );
                                 })()}
                             </div>
-                            {/* show patient availabilities for the day */}
-                            {(() => {
+                            {/* show patient availabilities for the day (only in booking mode) */}
+                            {bookingMode && (() => {
                                 // only show patient-only slots here (exclude those times where an intern is present to avoid duplicates)
                                 const internSlotsForDay = buildHourlySlotsForDate(selectedDate).map(s => s.start.getTime());
                                 let pSlots = buildHourlyPatientSlotsForDate(selectedDate) || [];
@@ -384,6 +426,37 @@ export default function Schedules() {
                                             <div className="week-day-header">{d.toLocaleDateString(undefined,{ weekday: 'short', day:'numeric' })}</div>
                                             <div className="week-day-body">
                                                 {(() => {
+                                                    // If not in booking mode, show existing schedules for this day
+                                                    if (!bookingMode) {
+                                                        const scheds = getSchedulesForDate(d);
+                                                        if (!scheds || scheds.length === 0) return <div className="empty">Nenhum agendamento neste dia.</div>;
+                                                        const keyFor = (dt: Date) => {
+                                                            const y = dt.getFullYear();
+                                                            const m = String(dt.getMonth()+1).padStart(2,'0');
+                                                            const day = String(dt.getDate()).padStart(2,'0');
+                                                            const hh = String(dt.getHours()).padStart(2,'0');
+                                                            const mm = String(dt.getMinutes()).padStart(2,'0');
+                                                            return `${y}-${m}-${day}T${hh}:${mm}`;
+                                                        };
+                                                        const map = new Map<string, any[]>();
+                                                        scheds.forEach(s => {
+                                                            try{ const k = keyFor(new Date(s.start_time)); if (!map.has(k)) map.set(k, []); map.get(k)!.push(s); }catch(e){}
+                                                        });
+                                                        const entries = Array.from(map.entries()).sort((a,b)=> new Date(a[0]).getTime() - new Date(b[0]).getTime());
+                                                        return entries.map(([k, list]) => (
+                                                            <div key={`srow-${k}`} className="time-row">
+                                                                <div style={{display:'flex', gap:8, flexWrap:'wrap'}}>
+                                                                    {list.map((s: any) => (
+                                                                        <div key={`s-${s.id}`} className="day-availability-item calendar-schedule" title={`${findPersonName(patients, s.patient)} — ${findPersonName(interns, s.intern)}`}>
+                                                                            <div className="event-time">{new Date(s.start_time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} - {new Date(s.end_time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
+                                                                            <div className="event-main">{findPersonShortName(patients, s.patient)} — {findPersonShortName(interns, s.intern)}</div>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        ));
+                                                    }
+                                                    // bookingMode: render availabilities (existing behavior)
                                                     const internSlots = buildHourlySlotsForDate(d);
                                                     const patientSlots = buildHourlyPatientSlotsForDate(d);
                                                     // group by local hour:minute key to avoid timezone/ms mismatch
@@ -417,24 +490,24 @@ export default function Schedules() {
                                                             <div key={`row-${k}`} className={`time-row${isPotentialMatch ? ' time-row-match' : ''}`}>
                                                                 <div style={{display:'flex', gap:8, flexWrap:'wrap'}}>
                                                                     {group.intern.map(slot => (
-                                                                                <div key={`i-${slot.internId}-${slot.start.toISOString()}`} title={slot.internName} className={`day-availability-item availability-intern${isPotentialMatch ? ' slot-potential-match' : ''}`} style={{cursor: bookingMode ? (form.patient ? 'pointer' : 'default') : 'default'}} onClick={()=> (bookingMode && form.patient) ? handleSlotClick(slot as any) : undefined}>
-                                                                                    <div className="event-time">{t.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} - {new Date(t.getTime()+3600*1000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
-                                                                                    <div className="event-main">{findPersonShortName(interns, slot.internId)}</div>
-                                                                                </div>
+                                                                        <div key={`i-${slot.internId}-${slot.start.toISOString()}`} title={slot.internName} className={`day-availability-item availability-intern${isPotentialMatch ? ' slot-potential-match' : ''}`} style={{cursor: bookingMode ? (form.patient ? 'pointer' : 'default') : 'default'}} onClick={()=> (bookingMode && form.patient) ? handleSlotClick(slot as any) : undefined}>
+                                                                            <div className="event-time">{t.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} - {new Date(t.getTime()+3600*1000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
+                                                                            <div className="event-main">{findPersonShortName(interns, slot.internId)}</div>
+                                                                        </div>
                                                                     ))}
-                                                                            {isPotentialMatch ? group.patients.map(ps => (
-                                                                                <div key={`p-${ps.parentId}-${ps.start.toISOString()}`} className={`day-availability-item availability-patient${bookingMode && form.patient && String(ps.patientId) === String(form.patient) ? ' slot-match' : ''}${isPotentialMatch ? ' slot-potential-match' : ''}`} title={ps.patientName}>
-                                                                                    <div className="event-time">{t.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} - {new Date(t.getTime()+3600*1000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
-                                                                                    <div className="event-main">{findPersonShortName(patients, ps.patientId)}</div>
-                                                                                </div>
-                                                                            )) : null}
+                                                                    {isPotentialMatch ? group.patients.map(ps => (
+                                                                        <div key={`p-${ps.parentId}-${ps.start.toISOString()}`} className={`day-availability-item availability-patient${bookingMode && form.patient && String(ps.patientId) === String(form.patient) ? ' slot-match' : ''}${isPotentialMatch ? ' slot-potential-match' : ''}`} title={ps.patientName}>
+                                                                            <div className="event-time">{t.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} - {new Date(t.getTime()+3600*1000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
+                                                                            <div className="event-main">{findPersonShortName(patients, ps.patientId)}</div>
+                                                                        </div>
+                                                                    )) : null}
                                                                 </div>
                                                             </div>
                                                         );
                                                     });
                                                 })()}
-                                                {/* show patient availabilities for this week-day (hourly) */}
-                                                {(() => {
+                                                {/* show patient availabilities for this week-day (hourly) - only in booking mode */}
+                                                {bookingMode && (() => {
                                                     // only render patient-only slots (exclude times already shown with interns in this day column)
                                                     const internSlotsForDay = buildHourlySlotsForDate(d).map(s => s.start.getTime());
                                                     let pSlots = buildHourlyPatientSlotsForDate(d) || [];
