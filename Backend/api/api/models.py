@@ -16,6 +16,8 @@ class Patient(models.Model):
     last_name = models.CharField(max_length=150, blank=True)
     email = models.EmailField(blank=True)
     phone = models.CharField(max_length=50, blank=True)
+    # mark patient active/disabled
+    is_active = models.BooleanField(default=True)
 
     def __str__(self):
         return f"{self.first_name} {self.last_name}" if self.last_name else self.first_name
@@ -25,6 +27,8 @@ class Estagiario(models.Model):
     first_name = models.CharField(max_length=150)
     last_name = models.CharField(max_length=150, blank=True)
     email = models.EmailField(blank=True)
+    # mark intern active/disabled
+    is_active = models.BooleanField(default=True)
 
     def __str__(self):
         return f"{self.first_name} {self.last_name}" if self.last_name else self.first_name

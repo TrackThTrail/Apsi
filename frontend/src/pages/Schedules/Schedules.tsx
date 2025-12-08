@@ -1,4 +1,7 @@
 import React, { useEffect, useState } from 'react';
+import Select from 'react-select';
+import { DebounceInput } from 'react-debounce-input';
+import { FaSearch } from 'react-icons/fa';
 import './Schedules.css';
 
 export default function Schedules() {
@@ -17,6 +20,35 @@ export default function Schedules() {
     const [bookingMode, setBookingMode] = useState(false);
     const [showSchedulePanel, setShowSchedulePanel] = useState(false);
     const [form, setForm] = useState({ patient: '', intern: '', room_id: '', start_time: '', end_time: '' });
+
+    // react-select options and styles for patient select
+    const patientOptions = patients.map(p => ({ value: String(p.id), label: `${p.first_name} ${p.last_name || ''}`.trim() }));
+    const filterOptions = [
+        { value: 'any', label: 'Todos' },
+        { value: 'patient', label: 'Paciente' },
+        { value: 'intern', label: 'Estagiário' },
+    ];
+    const customSelectStyles: any = {
+        control: (provided: any, state: any) => ({
+            ...provided,
+            background: '#0f172a',
+            borderColor: state.isFocused ? 'rgba(10,132,255,0.6)' : 'rgba(255,255,255,0.06)',
+            boxShadow: state.isFocused ? '0 0 0 3px rgba(10,132,255,0.06)' : 'none',
+            minWidth: 200,
+            color: '#f8fafc'
+        }),
+        singleValue: (provided: any) => ({ ...provided, color: '#f8fafc' }),
+        option: (provided: any, state: any) => ({
+            ...provided,
+            background: state.isSelected ? 'rgba(14,165,233,0.12)' : (state.isFocused ? 'rgba(14,165,233,0.06)' : 'transparent'),
+            color: '#f8fafc',
+            padding: '8px 12px'
+        }),
+        menu: (provided: any) => ({ ...provided, background: '#0f172a', color: '#f8fafc', borderRadius: 8, overflow: 'hidden' }),
+        placeholder: (provided: any) => ({ ...provided, color: 'rgba(248,250,252,0.6)' }),
+        dropdownIndicator: (provided: any) => ({ ...provided, color: 'rgba(248,250,252,0.6)' }),
+        indicatorSeparator: (provided: any) => ({ ...provided, background: 'transparent' }),
+    };
 
     const fetchSchedules = async (params?: { q?: string; start?: string; end?: string; filterBy?: string }) => {
         setLoading(true);
@@ -227,6 +259,22 @@ export default function Schedules() {
         }catch(err){ console.error(err); }
     };
 
+    const handleDeleteSchedule = async (id: any) => {
+        if (!confirm('Excluir agendamento? Essa ação não pode ser desfeita.')) return;
+        try{
+            const token = localStorage.getItem('access_token');
+            const resp = await fetch(`http://localhost:8000/api/schedules/${id}/`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+            if (resp.ok || resp.status === 204) {
+                // refresh data
+                fetchSchedules();
+                fetchAvailabilities();
+                fetchPatientAvailabilities();
+            } else {
+                console.error('delete failed', await resp.text());
+            }
+        }catch(e){ console.error(e); }
+    };
+
     
 
     return (
@@ -235,21 +283,36 @@ export default function Schedules() {
                 <div className="schedules-filter">
                     <h2>Agendamentos</h2>
                     <form onSubmit={handleSearch} className="schedules-search-form">
-                        <div style={{display:'flex', gap:8, alignItems:'center'}}>
-                            <input value={q} onChange={e => setQ(e.target.value)} placeholder="Pesquisar por paciente/estagiário/room" />
-                            <select value={filterBy} onChange={e => setFilterBy(e.target.value as any)}>
-                                <option value="any">Todos</option>
-                                <option value="patient">Paciente</option>
-                                <option value="intern">Estagiário</option>
-                            </select>
+                        <div className="search-left" style={{display:'flex', gap:8, alignItems:'center'}}>
+                            <div className="search-input-container">
+                                <FaSearch className="search-icon" />
+                                <DebounceInput
+                                    minLength={1}
+                                    debounceTimeout={300}
+                                    element="input"
+                                    value={q}
+                                    onChange={(e: any) => { const v = e.target.value; setQ(v); fetchSchedules({ q: v, start, end, filterBy }); }}
+                                    placeholder="Pesquisar por paciente/estagiário/room"
+                                    className="search-input"
+                                />
+                            </div>
+                            <div style={{minWidth:140}}>
+                                <Select
+                                    styles={customSelectStyles}
+                                    options={filterOptions}
+                                    value={filterOptions.find(o => o.value === filterBy) || filterOptions[0]}
+                                    onChange={(opt:any) => setFilterBy(opt ? (opt.value as 'any'|'patient'|'intern') : 'any')}
+                                    isSearchable={false}
+                                />
+                            </div>
+                            <div className="date-range">
+                                <label>De</label>
+                                <input type="date" value={start} onChange={e => setStart(e.target.value)} />
+                                <label>Até</label>
+                                <input type="date" value={end} onChange={e => setEnd(e.target.value)} />
+                            </div>
+                            <button type="submit" className="btn btn-search">Buscar</button>
                         </div>
-                        <div className="date-range">
-                            <label>De</label>
-                            <input type="date" value={start} onChange={e => setStart(e.target.value)} />
-                            <label>Até</label>
-                            <input type="date" value={end} onChange={e => setEnd(e.target.value)} />
-                        </div>
-                        <button type="submit">Buscar</button>
                     </form>
                 </div>
 
@@ -286,10 +349,16 @@ export default function Schedules() {
                             {bookingMode && (
                                 <div style={{display:'flex', gap:8, alignItems:'center'}}>
                                     <label style={{color:'#cfe8ff', fontWeight:600}}>Paciente</label>
-                                    <select name="patient" value={form.patient} onChange={(e)=> setForm({...form, patient: e.target.value})}>
-                                        <option value="">-- selecione paciente --</option>
-                                        {patients.map(p => <option key={p.id} value={p.id}>{p.first_name} {p.last_name}</option>)}
-                                    </select>
+                                    <div style={{minWidth:220}}>
+                                        <Select
+                                            styles={customSelectStyles}
+                                            options={patientOptions}
+                                            value={patientOptions.find(o => o.value === String(form.patient)) || null}
+                                            onChange={(opt:any) => setForm({...form, patient: opt ? String(opt.value) : ''})}
+                                            placeholder="-- selecione paciente --"
+                                            isClearable
+                                        />
+                                    </div>
                                 </div>
                             )}
                         </div>
@@ -534,10 +603,14 @@ export default function Schedules() {
                                     <h2>Criar agendamento</h2>
                                     <form onSubmit={handleCreateSchedule} className="panel-form">
                                         <label>Paciente</label>
-                                        <select name="patient" value={form.patient} onChange={handleFormChange} required>
-                                            <option value="">Selecione</option>
-                                            {patients.map(p => <option key={p.id} value={p.id}>{p.first_name} {p.last_name}</option>)}
-                                        </select>
+                                        <Select
+                                            styles={customSelectStyles}
+                                            options={patientOptions}
+                                            value={patientOptions.find(o => o.value === String(form.patient)) || null}
+                                            onChange={(opt:any) => setForm({...form, patient: opt ? String(opt.value) : ''})}
+                                            placeholder="Selecione"
+                                            isClearable
+                                        />
                                         <label>Estagiário</label>
                                         <select name="intern" value={form.intern} onChange={handleFormChange} required>
                                             <option value="">Selecione</option>
@@ -567,6 +640,7 @@ export default function Schedules() {
                                         <th>Room</th>
                                         <th>Start</th>
                                         <th>End</th>
+                                        <th>Ações</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -578,6 +652,9 @@ export default function Schedules() {
                                                 <td>{s.room_id ?? '-'}</td>
                                                 <td>{new Date(s.start_time).toLocaleString()}</td>
                                                 <td>{new Date(s.end_time).toLocaleString()}</td>
+                                                <td>
+                                                    <button className="btn btn-danger" onClick={async (e)=>{ e.stopPropagation(); if(!confirm('Excluir agendamento?')) return; await handleDeleteSchedule(s.id); }}>Excluir</button>
+                                                </td>
                                             </tr>
                                     ))}
                                 </tbody>

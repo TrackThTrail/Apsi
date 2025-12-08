@@ -6,6 +6,7 @@ from rest_framework.response import Response
 
 from .serializers import UserSerializer, TurmaSerializer, PatientSerializer, EstagiarioSerializer, AvailabilitySerializer, ScheduleSerializer, PatientAvailabilitySerializer
 from .models import Turma, Patient, Estagiario, Availability, Schedule, PatientAvailability
+from django.utils import timezone
 
 
 class IsAdminOrReadWrite(permissions.BasePermission):
@@ -27,15 +28,45 @@ class TurmaViewSet(viewsets.ModelViewSet):
 
 
 class PatientViewSet(viewsets.ModelViewSet):
-    queryset = Patient.objects.all().order_by('id')
+    # list only active patients by default
+    queryset = Patient.objects.filter(is_active=True).order_by('id')
     serializer_class = PatientSerializer
     permission_classes = [IsAdminOrReadWrite]
 
+    def destroy(self, request, pk=None):
+        # soft-delete: mark patient inactive and remove future patient availabilities and schedules
+        try:
+            pt = Patient.objects.get(pk=pk)
+        except Patient.DoesNotExist:
+            return Response(status=404)
+        pt.is_active = False
+        pt.save()
+        now = timezone.now()
+        PatientAvailability.objects.filter(patient=pt, start_date__gt=now).delete()
+        Schedule.objects.filter(patient=pt, start_time__gt=now).delete()
+        return Response(status=204)
+
 
 class EstagiarioViewSet(viewsets.ModelViewSet):
-    queryset = Estagiario.objects.all().order_by('id')
+    # only list active interns by default
+    queryset = Estagiario.objects.filter(is_active=True).order_by('id')
     serializer_class = EstagiarioSerializer
     permission_classes = [IsAdminOrReadWrite]
+
+    def destroy(self, request, pk=None):
+        # Instead of hard-deleting, mark intern as inactive and remove future availabilities and schedules
+        try:
+            est = Estagiario.objects.get(pk=pk)
+        except Estagiario.DoesNotExist:
+            return Response(status=404)
+        # mark inactive
+        est.is_active = False
+        est.save()
+        # remove future availabilities and schedules for this intern
+        now = timezone.now()
+        Availability.objects.filter(intern=est, start_date__gt=now).delete()
+        Schedule.objects.filter(intern=est, start_time__gt=now).delete()
+        return Response(status=204)
 
 
 class AvailabilityViewSet(viewsets.ModelViewSet):

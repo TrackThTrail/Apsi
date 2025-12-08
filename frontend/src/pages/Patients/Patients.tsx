@@ -53,14 +53,27 @@ export default function Patients() {
                                         <th>ID</th>
                                         <th>Nome</th>
                                         <th>Email</th>
+                                        <th>Ações</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {patients.map(p => (
-                                        <tr key={p.id} onClick={() => navigate(`/patients/${p.id}`)} style={{ cursor: 'pointer' }}>
+                                        <tr key={p.id}>
                                             <td>{p.id}</td>
-                                            <td>{p.first_name} {p.last_name}</td>
+                                            <td style={{ cursor: 'pointer' }} onClick={() => navigate(`/patients/${p.id}`)}>{p.first_name} {p.last_name}</td>
                                             <td>{p.email}</td>
+                                            <td>
+                                                <button className="btn btn-danger" onClick={async (e)=>{
+                                                    e.stopPropagation();
+                                                    if (!confirm(`Inativar paciente ${p.first_name} ${p.last_name || ''}? Isso removerá disponibilidades e agendamentos futuros.`)) return;
+                                                    try{
+                                                        const token = localStorage.getItem('access_token');
+                                                        const resp = await fetch(`http://localhost:8000/api/patients/${p.id}/`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+                                                        if (resp.ok || resp.status === 204) fetchPatients();
+                                                        else console.error('failed to inactivate', await resp.text());
+                                                    }catch(e){ console.error(e); }
+                                                }}>Inativar</button>
+                                            </td>
                                         </tr>
                                     ))}
                                 </tbody>

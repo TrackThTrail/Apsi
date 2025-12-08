@@ -1,10 +1,51 @@
 .schedules-grid { max-width: 1600px; margin: 0 auto; padding: 1rem; display: grid; grid-template-columns: 1fr; gap: 1rem; }
 
 .schedules-filter { background: rgb(19 31 61 / 95%); color: #fff; padding: 1rem; border-radius: 12px; box-shadow: 0 8px 20px rgba(2,6,23,0.12); }
-.schedules-search-form { display: flex; flex-direction: column; gap: 0.5rem; }
-.schedules-search-form input[type="text"], .schedules-search-form input[type="date"] { padding: 0.5rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.06); background: #0f172a; color: #f8fafc; }
+.schedules-search-form { display:flex; gap:0.5rem; align-items:center; justify-content:flex-start; flex-wrap:wrap; }
+.schedules-search-form input[type="text"], .schedules-search-form input[type="date"], .schedules-search-form select { padding: 0.5rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.06); background: #0f172a; color: #f8fafc; }
+
+/* styled search input in the schedules form */
+.schedules-search-form .search-left input[type="text"] {
+	flex: 1 1 auto;
+	min-width: 220px;
+	padding: 0.5rem 0.75rem;
+	background: #0f172a;
+	color: #f8fafc;
+	border: 1px solid rgba(255,255,255,0.06);
+	border-radius: 6px;
+	box-shadow: none;
+}
+.schedules-search-form .search-left input[type="text"]::placeholder { color: rgba(248,250,252,0.55); }
+.schedules-search-form .search-left input[type="text"]:focus { outline: none; border-color: rgba(10,132,255,0.6); box-shadow: 0 0 0 3px rgba(10,132,255,0.06); }
+
+/* search input container with icon */
+.search-input-container { display:flex; align-items:center; gap:8px; background:#0f172a; padding:6px 8px; border-radius:8px; border:1px solid rgba(255,255,255,0.06); }
+.search-input-container .search-icon { color: rgba(248,250,252,0.6); margin-left:2px; }
+.search-input-container .search-input { background: transparent; border: none; color: #f8fafc; outline: none; padding:6px 4px; min-width:260px; }
+.search-input-container .search-input::placeholder { color: rgba(248,250,252,0.55); }
 .schedules-search-form .date-range { display:flex; gap:0.5rem; align-items:center; }
-.schedules-search-form button { padding: 0.6rem 1rem; background:#130830; color:#fff; border:none; border-radius:8px; cursor:pointer; }
+.schedules-search-form .search-left { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.schedules-search-form .btn-search { padding: 0.38rem 0.6rem; background:#130830; color:#fff; border:none; border-radius:6px; cursor:pointer; min-width:72px; }
+
+/* patient select styling for Schedules page */
+.select-patient {
+	background: #0f172a;
+	color: #f8fafc;
+	border: 1px solid rgba(255,255,255,0.06);
+	padding: 0.45rem 0.6rem;
+	border-radius: 6px;
+	appearance: none;
+	-webkit-appearance: none;
+	-moz-appearance: none;
+	background-image: linear-gradient(45deg, transparent 50%, rgba(203,213,225,0.9) 50%), linear-gradient(135deg, rgba(203,213,225,0.9) 50%, transparent 50%);
+	background-position: calc(100% - 1rem) calc(50% - 3px), calc(100% - 0.7rem) calc(50% - 3px);
+	background-size: 6px 6px, 6px 6px;
+	background-repeat: no-repeat;
+}
+.select-patient option { color: #0b1220; background: #ffffff; }
+
+/* ensure selects inside panel also inherit nicer styles */
+.panel-form .select-patient { width: 100%; }
 
 .schedules-list { background: rgb(19 31 61 / 95%); color: #fff; padding: 1rem; border-radius: 12px; box-shadow: 0 8px 20px rgba(2,6,23,0.12); }
 .table-wrap { overflow:auto; }

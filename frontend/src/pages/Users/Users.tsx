@@ -68,6 +68,7 @@ export default function Users() {
                                         <th>ID</th>
                                         <th>Nome</th>
                                         <th>Email</th>
+                                        <th>Ações</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -76,6 +77,17 @@ export default function Users() {
                                             <td>{u.id}</td>
                                             <td><Link to={`/users/${u.id}`}>{u.first_name} {u.last_name ? u.last_name : ''}</Link></td>
                                             <td>{u.email}</td>
+                                            <td>
+                                                <button className="btn btn-danger" onClick={async ()=>{
+                                                    if (!confirm(`Inativar estagiário ${u.first_name} ${u.last_name || ''}? Isso removerá disponibilidades e agendamentos futuros.`)) return;
+                                                    try{
+                                                        const token = localStorage.getItem('access_token');
+                                                        const resp = await fetch(`http://localhost:8000/api/estagiarios/${u.id}/`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+                                                        if (resp.ok || resp.status === 204) fetchUsers();
+                                                        else console.error('failed to inactivate', await resp.text());
+                                                    }catch(e){ console.error(e); }
+                                                }}>Inativar</button>
+                                            </td>
                                         </tr>
                                     ))}
                                 </tbody>

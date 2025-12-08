@@ -43,13 +43,13 @@ class TurmaSerializer(serializers.ModelSerializer):
 class PatientSerializer(serializers.ModelSerializer):
     class Meta:
         model = Patient
-        fields = ('id', 'first_name', 'last_name', 'email', 'phone')
+        fields = ('id', 'first_name', 'last_name', 'email', 'phone', 'is_active')
 
 
 class EstagiarioSerializer(serializers.ModelSerializer):
     class Meta:
         model = Estagiario
-        fields = ('id', 'first_name', 'last_name', 'email')
+        fields = ('id', 'first_name', 'last_name', 'email', 'is_active')
 
 
 class AvailabilitySerializer(serializers.ModelSerializer):
